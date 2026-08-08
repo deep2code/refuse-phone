@@ -1,0 +1,39 @@
+package com.example.phonequery.data.source
+
+import com.example.phonequery.BuildConfig
+import com.example.phonequery.model.NumberType
+import com.example.phonequery.network.JuheService
+import com.example.phonequery.data.NetworkModule
+
+/**
+ * 可选在线源：聚合数据「手机号归属地」(id/11)。
+ * - 需要 BuildConfig.JUHE_KEY（在 local.properties 配置），未配置则 [isEnabled] = false，不参与查询。
+ * - 免费额度约 50 次/天，仅补充归属地（省/市/运营商），不提供骚扰标记。
+ * - 当默认源 tmini 失败或归属地缺失时作为冗余来源。
+ */
+class JuheSource : OnlineMarkSource {
+    override val name = "juhe"
+    override val isEnabled: Boolean = BuildConfig.JUHE_KEY.isNotBlank()
+
+    private val service by lazy { NetworkModule.juheRetrofit.create(JuheService::class.java) }
+
+    override suspend fun query(number: String, type: NumberType): SourceResult? {
+        if (!isEnabled) return null
+        if (type != NumberType.MOBILE) return null
+        val digits = number.replace(Regex("\\D"), "")
+        if (digits.length != 11) return null
+
+        val resp = runCatching { service.getMobile(digits, BuildConfig.JUHE_KEY) }.getOrNull()
+        val r = resp?.result ?: return null
+        if (resp.error_code != 0) return null
+
+        return SourceResult(
+            sourceName = name,
+            province = r.province,
+            city = r.city,
+            carrier = r.company,
+            areaCode = r.areacode,
+            zipCode = r.zip
+        )
+    }
+}

@@ -1,0 +1,57 @@
+# 复制本文件为 local.properties 并填入你的真实配置
+# 不要提交 local.properties 到版本控制
+
+sdk.dir=/Users/junjunyi/Library/Android/sdk
+
+# ============================================================
+# 本项目默认零 key 运行，无需配置任何 API Key：
+#   - 号码标记 + 企业反查：tmini.net 免费聚合网关（零 key）
+#   - 骚扰/诈骗号段识别：内置 SpamPrefixDatabase（离线）
+# 全部核心功能开箱即用。
+# ============================================================
+
+# ===== Release 签名（仅打 release 包时需要）=====
+# 用 keytool 生成：
+#   keytool -genkeypair -v -keystore phonequery-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias phonequery
+# 然后把下面四项填好；CI 也可用环境变量 SIGNING_KEY_BASE64（jks 的 base64）+ 三个密码注入
+KEYSTORE_PATH=phonequery-release.jks
+KEYSTORE_PASSWORD=your_keystore_password
+KEY_ALIAS=phonequery
+KEY_PASSWORD=your_key_password
+
+# ============================================================
+# 可选在线源（按需配置，全部留空则不使用，继续零 key 运行）
+# ============================================================
+
+# 聚合数据「手机号归属地」key（免费约 50 次/天）：https://www.juhe.cn/docs/api/id/11
+# 配置后作为可选归属地冗余源（不提供骚扰标记）；未配置则跳过。
+JUHE_KEY=
+
+# 百度手机号归属地接口（可选，需自建代理/密钥；百度旧免 key 接口已停服）
+# 后端需返回 JSON（含 province/city/company 字段），详见 data/source/BaiduSource.kt
+# 两个都填才启用，留空则不使用。
+BAIDU_PHONE_API_URL=
+BAIDU_PHONE_KEY=
+
+# ============================================================
+# 可选在线标记源：阿里云市场「多平台号码标记查询 API」
+# 聚合 腾讯手机管家/百度手机卫士/电话邦/360/泰迪熊 多平台标记，付费按次。
+# 申请：阿里云市场搜索「号码标记查询」购买，得到 APPCODE 与调用地址（查看「调用说明」）。
+# 三个都填才启用，留空则不使用：
+#   ALIYUN_MARK_APPCODE = 你的 APPCODE
+#   ALIYUN_MARK_URL      = 提交查询的调用地址（如 https://.../xxx）
+#   ALIYUN_MARK_RESULT_URL = 轮询取结果的地址（若与提交地址相同可留空）
+ALIYUN_MARK_APPCODE=
+ALIYUN_MARK_URL=
+ALIYUN_MARK_RESULT_URL=
+
+# ============================================================
+# 可选企业源：企查查开放平台（固话 → 公司 + 所属行业）
+# 免费试用 20 次，之后按次付费。申请：openapi.qcc.com，得到 APPKEY + Token。
+# 两个都填才启用，留空则不使用：
+QCC_KEY=
+QCC_TOKEN=
+
+# 可选企业源：百度爱企查开放 API（固话 → 公司 + 行业）
+# 申请：百度智能云/爱企查开放平台，得到 APIKEY。填了才启用。
+AIQICHA_APIKEY=

@@ -1,0 +1,120 @@
+package com.example.phonequery.data
+
+import android.content.Context
+import com.example.phonequery.data.source.AiqichaSource
+import com.example.phonequery.data.source.EnterpriseSource
+import com.example.phonequery.data.source.EnterpriseSourceResult
+import com.example.phonequery.data.source.QccSource
+import com.example.phonequery.model.EnterpriseInfo
+import com.example.phonequery.model.LandlineLocation
+import com.example.phonequery.network.TminiService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/**
+ * 固话企业反查仓库（零 key 默认 + 可选工商源增强）
+ *
+ * - 默认（零 key）：tmini 免费聚合网关（电话邦数据源）按号码反查企业名。
+ * - 可选增强（key 门控）：企查查 / 爱企查，补充「所属行业 / 法人 / 状态」。
+ *   企查查还能在 tmini 无果时，直接按电话号码反查公司（ApiCode 886）+ 核验行业（ApiCode 2001）。
+ */
+class EnterpriseRepository(context: Context) {
+
+    private val areaCodeHelper = AreaCodeHelper(context)
+    private val tminiService: TminiService = NetworkModule.tminiRetrofit.create(TminiService::class.java)
+    private val markCacheRepository: MarkCacheRepository = MarkCacheRepository(context)
+
+    /** 可选企业源；全部 key 缺失时为空列表，走纯零 key 流程。 */
+    private val enterpriseSources: List<EnterpriseSource> = listOfNotNull(
+        QccSource().takeIf { it.isEnabled },
+        AiqichaSource().takeIf { it.isEnabled }
+    )
+
+    /**
+     * 对固话号码做企业反查：
+     * 1. 解析区号得到城市；
+     * 2. 先读本地缓存（断网可用）；无缓存再走 tmini 按原号码反查企业（电话邦认证）；
+     * 3. 可选：用企查查/爱企查补充行业/法人/状态，或在 tmini 无果时直接按电话反查公司。
+     */
+    suspend fun querySimilarEnterprises(number: String): Pair<LandlineLocation?, List<EnterpriseInfo>> =
+        withContext(Dispatchers.IO) {
+            val landline = areaCodeHelper.parseLandline(number)
+                ?: return@withContext Pair(null, emptyList())
+
+            val digits = number.replace(Regex("\\D"), "")
+
+            // 先查本地缓存（断网也能反查）
+            val cachedNames = runCatching { markCacheRepository.getCachedEnterprise(digits) }.getOrNull()
+            if (!cachedNames.isNullOrEmpty()) {
+                return@withContext Pair(
+                    landline,
+                    cachedNames.map { EnterpriseInfo(name = it, source = "本地缓存") }
+                )
+            }
+
+            val tminiEnterprises = queryTminiEnterprise(digits)
+
+            val enterprises = if (tminiEnterprises.isNotEmpty()) {
+                // 用可选工商源为首要企业补充行业/法人/状态
+                val primary = tminiEnterprises.first()
+                val enrichedPrimary = enrich(primary.name, digits)
+                listOf(enrichedPrimary) + tminiEnterprises.drop(1)
+            } else {
+                // tmini 无果时，尝试用工商源按电话反查公司
+                lookupFromSources(digits)?.let { listOf(it) } ?: emptyList()
+            }
+
+            if (enterprises.isNotEmpty()) {
+                runCatching { markCacheRepository.saveEnterprise(digits, enterprises.map { it.name }) }
+            }
+            Pair(landline, enterprises)
+        }
+
+    /** 用可选企业源为已知公司名补充行业/法人/状态。 */
+    private suspend fun enrich(name: String, digits: String): EnterpriseInfo {
+        for (src in enterpriseSources) {
+            if (!src.isEnabled) continue
+            val r = runCatching { src.lookup(digits) }.getOrNull() ?: continue
+            if (r.industry != null || r.legalPerson != null || r.status != null) {
+                return EnterpriseInfo(
+                    name = name,
+                    industry = r.industry,
+                    legalPerson = r.legalPerson,
+                    status = r.status,
+                    source = "${r.sourceName} + tmini"
+                )
+            }
+        }
+        return EnterpriseInfo(name = name, source = "tmini/电话邦")
+    }
+
+    /** 当 tmini 无果时，用可选企业源直接按电话反查公司。 */
+    private suspend fun lookupFromSources(digits: String): EnterpriseInfo? {
+        for (src in enterpriseSources) {
+            if (!src.isEnabled) continue
+            val r: EnterpriseSourceResult = runCatching { src.lookup(digits) }.getOrNull() ?: continue
+            if (!r.company.isNullOrBlank()) {
+                return EnterpriseInfo(
+                    name = r.company,
+                    industry = r.industry,
+                    legalPerson = r.legalPerson,
+                    status = r.status,
+                    source = r.sourceName
+                )
+            }
+        }
+        return null
+    }
+
+    private suspend fun queryTminiEnterprise(number: String): List<EnterpriseInfo> {
+        val digits = number.replace(Regex("\\D"), "")
+        val response = runCatching { tminiService.queryEnterprise(digits) }.getOrNull()
+        return response?.items?.mapNotNull { it.name }?.map { name ->
+            EnterpriseInfo(
+                name = name,
+                phone = digits,
+                source = "tmini/电话邦"
+            )
+        } ?: emptyList()
+    }
+}
