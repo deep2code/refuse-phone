@@ -46,6 +46,14 @@
     <string name="label_carrier">运营商</string>
     <string name="label_area_code">区号</string>
     <string name="label_zip_code">邮编</string>
+    <string name="label_local_number_len">本地号位数</string>
+    <string name="local_number_len_value">%1$d 位</string>
+    <string name="label_area_code_nozero">区号（不含0）</string>
+    <string name="label_dial_domestic">国内拨打</string>
+    <string name="label_dial_intl">国际/港澳台拨打</string>
+    <string name="dial_domestic_value">0 + %1$s + %2$s</string>
+    <string name="dial_intl_value">+86 %1$s %2$s</string>
+    <string name="label_segment_7">号段（前7位）</string>
     <string name="label_spam_type">标记类型</string>
     <string name="label_spam_count">标记次数</string>
     <string name="label_spam_platforms">平台标记</string>

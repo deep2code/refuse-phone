@@ -308,30 +308,64 @@ private fun ResultCard(
                 value = result.numberType.displayName
             )
 
-            // —— 固话编码规律解析（0 + 长途区号 + 本地 7/8 位）——
             if (landlineBreakdown != null) {
+                // —— 固话编码规律解析（0 + 长途区号 + 本地 7/8 位）——
                 SectionTitle(stringResource(R.string.landline_parse_result_title))
                 InfoRow(stringResource(R.string.label_area_code), landlineBreakdown.areaCode)
                 InfoRow(stringResource(R.string.label_local_number), landlineBreakdown.localNumber)
+                InfoRow(
+                    stringResource(R.string.label_local_number_len),
+                    stringResource(R.string.local_number_len_value, landlineBreakdown.localNumber.length)
+                )
+                InfoRow(
+                    stringResource(R.string.label_area_code_nozero),
+                    landlineBreakdown.areaCode.removePrefix("0")
+                )
+                InfoRow(
+                    stringResource(R.string.label_dial_domestic),
+                    stringResource(
+                        R.string.dial_domestic_value,
+                        landlineBreakdown.areaCode,
+                        landlineBreakdown.localNumber
+                    )
+                )
+                InfoRow(
+                    stringResource(R.string.label_dial_intl),
+                    stringResource(
+                        R.string.dial_intl_value,
+                        landlineBreakdown.areaCode.removePrefix("0"),
+                        landlineBreakdown.localNumber
+                    )
+                )
                 InfoRow(
                     stringResource(R.string.label_attribution),
                     listOf(landlineBreakdown.province, landlineBreakdown.city)
                         .filter { !it.isNullOrBlank() }
                         .joinToString(" ")
                 )
+                landlineValidation?.let { msg ->
+                    Text(
+                        text = msg,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            } else {
+                // 手机 / 其他号码：展示归属地、号段、运营商、区号、邮编等
+                if (result.numberType == NumberType.MOBILE) {
+                    val seg = result.number.filter { it.isDigit() }.take(7)
+                    if (seg.length == 7) {
+                        InfoRow(stringResource(R.string.label_segment_7), seg)
+                    }
+                }
+                InfoRow(label = stringResource(R.string.label_province), value = result.province)
+                InfoRow(label = stringResource(R.string.label_city), value = result.city)
+                if (!result.carrier.isNullOrBlank()) {
+                    InfoRow(label = stringResource(R.string.label_carrier), value = result.carrier)
+                }
+                InfoRow(label = stringResource(R.string.label_area_code), value = result.areaCode)
+                InfoRow(label = stringResource(R.string.label_zip_code), value = result.zipCode)
             }
-            landlineValidation?.let { msg ->
-                Text(
-                    text = msg,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-            InfoRow(label = stringResource(R.string.label_province), value = result.province)
-            InfoRow(label = stringResource(R.string.label_city), value = result.city)
-            InfoRow(label = stringResource(R.string.label_carrier), value = result.carrier)
-            InfoRow(label = stringResource(R.string.label_area_code), value = result.areaCode)
-            InfoRow(label = stringResource(R.string.label_zip_code), value = result.zipCode)
             if (!result.codeNumberInfo.isNullOrBlank()) {
                 InfoRow(label = stringResource(R.string.label_code_number), value = result.codeNumberInfo)
             }

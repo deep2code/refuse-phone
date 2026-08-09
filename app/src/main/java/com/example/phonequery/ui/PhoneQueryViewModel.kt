@@ -13,6 +13,7 @@ import com.example.phonequery.model.EnterpriseInfo
 import com.example.phonequery.model.LandlineLocation
 import com.example.phonequery.model.NumberType
 import com.example.phonequery.model.PhoneInfo
+import com.example.phonequery.model.ResultSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -48,7 +49,7 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
         val digits = raw.filter { it.isDigit() || it == '+' }
         // 自动适应：根据输入自动推断固话 / 手机，并实时解析固话编码规律
         val detected = detectType(digits)
-        val (breakdown, validation) = if (digits.startsWith("0") && digits.length >= 10) {
+        val (breakdown, validation) = if (digits.startsWith("0") && digits.length >= 8) {
             computeLandline(digits)
         } else (null to null)
         _uiState.value = _uiState.value.copy(
@@ -121,9 +122,24 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
                 computeLandline(number)
             } else (null to null)
 
+            // 容错：libphonenumber 对部分合法固话（如 7 位本地号）会判为「号码格式无效」，
+            // 若我们的区号表能识别且本地号为 7/8 位，则以区号表为准，避免误报「无法识别」。
+            val finalResult = if (landlineBreakdown != null && landlineValidation == null
+                && (result.errorMessage != null || result.numberType == NumberType.UNKNOWN)
+            ) {
+                result.copy(
+                    numberType = NumberType.LANDLINE,
+                    province = landlineBreakdown.province ?: result.province,
+                    city = landlineBreakdown.city ?: result.city,
+                    areaCode = landlineBreakdown.areaCode,
+                    errorMessage = null,
+                    source = if (result.errorMessage != null) ResultSource.OFFLINE else result.source
+                )
+            } else result
+
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
-                result = result,
+                result = finalResult,
                 isInBlacklist = inBlack,
                 isInWhitelist = inWhite,
                 isInContacts = inContacts,
