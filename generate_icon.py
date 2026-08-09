@@ -7,14 +7,48 @@ OUT_PREVIEW = "/Users/junjunyi/src-code/refuse-phone/release-artifacts"
 SIZES = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
 
 
+def draw_phone(d, size, color):
+    # 文字下方的小电话手柄：两端圆 + 中间粗线，整体略斜
+    cx, cy = size / 2, size * 0.74
+    r = int(size * 0.055)
+    lw = int(size * 0.05)
+    left = (cx - size * 0.14, cy + size * 0.055)
+    right = (cx + size * 0.14, cy - size * 0.055)
+    d.line([left, right], fill=color, width=lw)
+    d.ellipse([left[0] - r, left[1] - r, left[0] + r, left[1] + r], fill=color)
+    d.ellipse([right[0] - r, right[1] - r, right[0] + r, right[1] + r], fill=color)
+
+
+def make_foreground(size):
+    # 透明底版本，用于通知/悬浮窗小图标（无白底方块）
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    f = int(size * 0.44)
+    font = ImageFont.truetype(FONT, f, index=0)
+    d.text((size / 2, size * 0.40), "骚扰", font=font,
+           fill=(31, 31, 31, 255), anchor="mm")
+    draw_phone(d, size, (31, 31, 31, 255))
+    lw = max(2, int(size * 0.0375))
+
+    def p(c):
+        return (c / 160.0) * size
+
+    red = (226, 75, 74, 255)
+    d.line([(p(54), p(42)), (p(134), p(122))], fill=red, width=lw)
+    d.line([(p(134), p(42)), (p(54), p(122))], fill=red, width=lw)
+    return img
+
+
 def make_icon(size):
     img = Image.new("RGBA", (size, size), (255, 255, 255, 255))
     d = ImageDraw.Draw(img)
-    # 黑字「骚扰」：字号约 0.45*size，水平垂直居中
-    f = int(size * 0.45)
+    # 黑字「骚扰」：字号约 0.44*size，上移给下方电话留位
+    f = int(size * 0.44)
     font = ImageFont.truetype(FONT, f, index=0)
-    d.text((size / 2, size / 2), "骚扰", font=font,
+    d.text((size / 2, size * 0.40), "骚扰", font=font,
            fill=(31, 31, 31, 255), anchor="mm")
+    # 文字下方的电话图标（黑色，与字同色）
+    draw_phone(d, size, (31, 31, 31, 255))
     # 红叉：范围与预览一致（160 网格内 x54~134 / y42~122），线宽 6/160
     lw = max(2, int(size * 0.0375))
 
@@ -36,6 +70,13 @@ for dpi, size in SIZES.items():
     print(f"wrote mipmap-{dpi} ({size}px)")
 
 os.makedirs(OUT_PREVIEW, exist_ok=True)
+# 透明底 foreground（通知/悬浮窗用）
+fg = make_foreground(192)
+drawable_dir = os.path.join(RES, "drawable")
+os.makedirs(drawable_dir, exist_ok=True)
+fg.save(os.path.join(drawable_dir, "ic_launcher_foreground.png"))
+print("wrote drawable/ic_launcher_foreground.png")
+
 big = make_icon(512)
 big.save(os.path.join(OUT_PREVIEW, "icon_preview.png"))
 print("wrote preview 512px")
