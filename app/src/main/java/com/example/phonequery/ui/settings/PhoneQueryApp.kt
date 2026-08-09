@@ -90,11 +90,23 @@ fun PhoneQueryApp(
                     },
                     onNavigateToSetupGuide = {
                         navController.navigate("guide")
+                    },
+                    onNavigateHome = {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }
             composable("blocklist") {
-                BlocklistScreen(viewModel = settingsViewModel)
+                BlocklistScreen(
+                    viewModel = settingsViewModel,
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable("guide") {
                 PermissionGuideScreen(

@@ -102,6 +102,40 @@ class MarkCacheRepository(context: Context) {
     /** 缓存条目数 */
     suspend fun count(): Int = runCatching { dao.count() }.getOrDefault(0)
 
+    /**
+     * 主动标记某个号码（用户手动标记）。
+     * 使用独立的 USERMARK 缓存类型，不与在线标记（MARK）互相覆盖。
+     * spamType 为标记内容，如「骚扰 / 诈骗 / 广告营销 / 正常 / 其他」。
+     */
+    suspend fun markNumber(digits: String, spamType: String) {
+        val clean = digits.replace(Regex("[^0-9]"), "")
+        if (clean.isBlank() || spamType.isBlank()) return
+        runCatching {
+            dao.upsert(
+                MarkCacheEntity(
+                    id = "${clean}_USERMARK",
+                    number = clean,
+                    cacheType = "USERMARK",
+                    spamType = spamType
+                )
+            )
+        }
+    }
+
+    /** 读取用户对某号码的主动标记（无则返回 null） */
+    suspend fun getUserMark(digits: String): String? {
+        val clean = digits.replace(Regex("[^0-9]"), "")
+        if (clean.isBlank()) return null
+        return runCatching { dao.getById("${clean}_USERMARK")?.spamType }.getOrNull()
+    }
+
+    /** 清除用户对某号码的主动标记 */
+    suspend fun clearUserMark(digits: String) {
+        val clean = digits.replace(Regex("[^0-9]"), "")
+        if (clean.isBlank()) return
+        runCatching { dao.deleteById("${clean}_USERMARK") }
+    }
+
     /** 清空全部标记缓存 */
     suspend fun clearAll() = runCatching { dao.clearAll() }
 }

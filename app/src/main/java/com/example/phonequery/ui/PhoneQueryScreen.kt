@@ -12,8 +12,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -23,6 +31,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
@@ -43,6 +52,10 @@ import com.example.phonequery.model.LandlineLocation
 import com.example.phonequery.model.NumberType
 import com.example.phonequery.model.PhoneInfo
 import com.example.phonequery.model.ResultSource
+import com.example.phonequery.ui.theme.AppCard
+import com.example.phonequery.ui.theme.InfoRow
+import com.example.phonequery.ui.theme.SectionTitle
+import com.example.phonequery.ui.theme.StatusRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,19 +81,19 @@ fun PhoneQueryScreen(viewModel: PhoneQueryViewModel) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OutlinedTextField(
-                value = uiState.number,
-                onValueChange = viewModel::onNumberChange,
-                label = { Text(stringResource(R.string.hint_input_phone)) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+            SegmentedPhoneInput(
+                inputType = uiState.inputType,
+                segments = uiState.segments,
+                onInputTypeChange = viewModel::onInputTypeChange,
+                onSegmentChange = viewModel::onSegmentChange,
+                onQuery = viewModel::query,
+                enabled = !uiState.isLoading
             )
 
             Button(
                 onClick = viewModel::query,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isLoading
+                enabled = !uiState.isLoading && uiState.number.isNotBlank()
             ) {
                 Icon(Icons.Default.Search, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -107,7 +120,14 @@ fun PhoneQueryScreen(viewModel: PhoneQueryViewModel) {
             uiState.result?.let { result ->
                 ResultCard(
                     result = result,
-                    onAddToBlacklist = viewModel::addToBlacklist
+                    isInBlacklist = uiState.isInBlacklist,
+                    isInWhitelist = uiState.isInWhitelist,
+                    isInContacts = uiState.isInContacts,
+                    contactsPermissionGranted = uiState.contactsPermissionGranted,
+                    userMark = uiState.userMark,
+                    onAddToBlacklist = viewModel::addToBlacklist,
+                    onMark = viewModel::markNumber,
+                    onClearMark = viewModel::clearUserMark
                 )
             }
 
@@ -138,27 +158,97 @@ fun PhoneQueryScreen(viewModel: PhoneQueryViewModel) {
     }
 }
 
+@Composable
+private fun SegmentedPhoneInput(
+    inputType: InputType,
+    segments: List<String>,
+    onInputTypeChange: (InputType) -> Unit,
+    onSegmentChange: (Int, String) -> Unit,
+    onQuery: () -> Unit,
+    enabled: Boolean
+) {
+    val lens = if (inputType == InputType.MOBILE) listOf(3, 4, 4) else listOf(3, 8)
+    val focusRequesters = remember(inputType) { List(lens.size) { FocusRequester() } }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = inputType == InputType.MOBILE,
+                onClick = { onInputTypeChange(InputType.MOBILE) },
+                label = { Text(stringResource(R.string.type_mobile)) }
+            )
+            FilterChip(
+                selected = inputType == InputType.LANDLINE,
+                onClick = { onInputTypeChange(InputType.LANDLINE) },
+                label = { Text(stringResource(R.string.type_landline)) }
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            lens.forEachIndexed { index, len ->
+                OutlinedTextField(
+                    value = segments.getOrElse(index) { "" },
+                    onValueChange = { raw ->
+                        onSegmentChange(index, raw)
+                        val digits = raw.filter { it.isDigit() }
+                        if (index < lens.size - 1) {
+                            if (digits.length >= len) focusRequesters[index + 1].requestFocus()
+                        } else if (digits.length >= len) {
+                            onQuery()
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequesters[index]),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = if (index == lens.size - 1) ImeAction.Search else ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = {
+                            if (index < lens.size - 1) focusRequesters[index + 1].requestFocus()
+                        },
+                        onSearch = { onQuery() },
+                        onDone = { onQuery() }
+                    ),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.titleMedium.copy(textAlign = TextAlign.Center),
+                    enabled = enabled
+                )
+            }
+        }
+
+        Text(
+            text = stringResource(R.string.seg_input_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ResultCard(
     result: PhoneInfo,
-    onAddToBlacklist: () -> Unit
+    isInBlacklist: Boolean,
+    isInWhitelist: Boolean,
+    isInContacts: Boolean,
+    contactsPermissionGranted: Boolean,
+    userMark: String?,
+    onAddToBlacklist: () -> Unit,
+    onMark: (String) -> Unit,
+    onClearMark: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    AppCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
                 Text(
                     text = stringResource(R.string.result_title),
                     style = MaterialTheme.typography.titleLarge
@@ -199,6 +289,43 @@ private fun ResultCard(
                 InfoRow(label = stringResource(R.string.label_code_number), value = result.codeNumberInfo)
             }
 
+            // —— 号码状态 ——
+            SectionTitle(stringResource(R.string.status_title))
+            val (blText, blColor) = if (isInBlacklist) {
+                stringResource(R.string.status_yes) to MaterialTheme.colorScheme.error
+            } else {
+                stringResource(R.string.status_no) to MaterialTheme.colorScheme.onSurface
+            }
+            StatusRow(stringResource(R.string.label_blacklist_status), blText, blColor)
+
+            val (wlText, wlColor) = if (isInWhitelist) {
+                stringResource(R.string.status_yes) to MaterialTheme.colorScheme.primary
+            } else {
+                stringResource(R.string.status_no) to MaterialTheme.colorScheme.onSurface
+            }
+            StatusRow(stringResource(R.string.label_whitelist_status), wlText, wlColor)
+
+            val (ctText, ctColor) = when {
+                !contactsPermissionGranted -> stringResource(R.string.contacts_not_authorized) to MaterialTheme.colorScheme.onSurfaceVariant
+                isInContacts -> stringResource(R.string.status_yes) to MaterialTheme.colorScheme.primary
+                else -> stringResource(R.string.status_no) to MaterialTheme.colorScheme.onSurface
+            }
+            StatusRow(stringResource(R.string.label_contacts_status), ctText, ctColor)
+
+            val onlineMark = buildString {
+                if (!result.spamType.isNullOrBlank()) append(result.spamType)
+                if (result.platformMarks.isNotEmpty()) {
+                    if (isNotEmpty()) append(" · ")
+                    append(result.platformMarks.joinToString(" / ") { "${it.platform}: ${it.mark}" })
+                }
+            }
+            val (omText, omColor) = if (onlineMark.isBlank()) {
+                stringResource(R.string.status_no) to MaterialTheme.colorScheme.onSurface
+            } else {
+                onlineMark to MaterialTheme.colorScheme.error
+            }
+            StatusRow(stringResource(R.string.label_online_mark_status), omText, omColor)
+
             if (!result.spamType.isNullOrBlank()) {
                 InfoRow(label = stringResource(R.string.label_spam_type), value = result.spamType)
             }
@@ -224,6 +351,29 @@ private fun ResultCard(
                 }
             }
 
+            // —— 我的标记（主动标记）——
+            SectionTitle(stringResource(R.string.my_mark_title))
+            Text(
+                text = if (userMark.isNullOrBlank()) {
+                    stringResource(R.string.my_mark_none)
+                } else {
+                    "${stringResource(R.string.my_mark_current)}：$userMark"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (userMark.isNullOrBlank()) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else MaterialTheme.colorScheme.primary
+            )
+            MarkChips(current = userMark, onMark = onMark)
+            if (!userMark.isNullOrBlank()) {
+                OutlinedButton(
+                    onClick = onClearMark,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.btn_clear_my_mark))
+                }
+            }
+
             Button(
                 onClick = onAddToBlacklist,
                 modifier = Modifier.fillMaxWidth(),
@@ -234,26 +384,30 @@ private fun ResultCard(
             ) {
                 Text(stringResource(R.string.btn_add_to_blacklist))
             }
-        }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun InfoRow(label: String, value: String?) {
-    if (value.isNullOrBlank()) return
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+private fun MarkChips(current: String?, onMark: (String) -> Unit) {
+    val options = listOf(
+        R.string.mark_spam to "骚扰",
+        R.string.mark_scam to "诈骗",
+        R.string.mark_ad to "广告营销",
+        R.string.mark_normal to "正常",
+        R.string.mark_other to "其他"
+    )
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyLarge
-        )
+        options.forEach { (resId, value) ->
+            FilterChip(
+                selected = current == value,
+                onClick = { onMark(value) },
+                label = { Text(stringResource(resId)) }
+            )
+        }
     }
 }
 
@@ -262,16 +416,7 @@ private fun LandlineEnterpriseCard(
     location: LandlineLocation,
     enterprises: List<EnterpriseInfo>
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+    AppCard {
             Text(
                 text = stringResource(R.string.enterprise_title),
                 style = MaterialTheme.typography.titleLarge
@@ -302,7 +447,6 @@ private fun LandlineEnterpriseCard(
                     }
                 }
             }
-        }
     }
 }
 

@@ -25,9 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import com.example.phonequery.ui.theme.AppCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -120,23 +119,21 @@ fun PermissionGuideScreen(
             )
 
             // 常规危险权限
-            Card(Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.setup_group_permissions), style = MaterialTheme.typography.titleMedium)
-                    standardPermissions.forEach { perm ->
-                        key(perm, refresh) {
-                            GuideRow(
-                                label = permissionLabel(perm),
-                                granted = isGranted(perm),
-                                onRequest = { permissionLauncher.launch(arrayOf(perm)) }
-                            )
-                        }
+            AppCard {
+                Text(stringResource(R.string.setup_group_permissions), style = MaterialTheme.typography.titleMedium)
+                standardPermissions.forEach { perm ->
+                    key(perm, refresh) {
+                        GuideRow(
+                            label = permissionLabel(perm),
+                            granted = isGranted(perm),
+                            onRequest = { permissionLauncher.launch(arrayOf(perm)) }
+                        )
                     }
                 }
             }
 
             // 悬浮窗（特殊权限）
-            Card(Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+            AppCard {
                 key(refresh) {
                     GuideRow(
                         label = stringResource(R.string.permission_overlay),
@@ -154,10 +151,9 @@ fun PermissionGuideScreen(
             }
 
             // 默认拨号应用（自动挂断前提，非必需）
-            Card(Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+            AppCard {
                 key(refresh) {
                     Column(
-                        Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         GuideRow(
@@ -188,23 +184,21 @@ fun PermissionGuideScreen(
             }
 
             // 厂商自启动 / 后台限制
-            Card(Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.setup_autostart_title), style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        stringResource(R.string.setup_autostart_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            AppCard {
+                Text(stringResource(R.string.setup_autostart_title), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(R.string.setup_autostart_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedButton(onClick = {
+                    val intent = Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:$packageName")
                     )
-                    OutlinedButton(onClick = {
-                        val intent = Intent(
-                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                            Uri.parse("package:$packageName")
-                        )
-                        settingsLauncher.launch(intent)
-                    }) {
-                        Text(stringResource(R.string.setup_open_app_settings))
-                    }
+                    settingsLauncher.launch(intent)
+                }) {
+                    Text(stringResource(R.string.setup_open_app_settings))
                 }
             }
 

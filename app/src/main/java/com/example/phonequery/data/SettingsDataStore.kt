@@ -27,6 +27,7 @@ class SettingsDataStore(context: Context) {
         val ENABLE_JOB_HUNT_MODE = booleanPreferencesKey("enable_job_hunt_mode")
         val ENABLE_SILENCE_UNKNOWN = booleanPreferencesKey("enable_silence_unknown")
         val ENABLE_CALL_SCREENING = booleanPreferencesKey("enable_call_screening")
+        val ENABLE_BLOCK_NON_CONTACTS = booleanPreferencesKey("enable_block_non_contacts")
         val HAS_SEEN_SETUP_GUIDE = booleanPreferencesKey("has_seen_setup_guide")
     }
 
@@ -39,7 +40,8 @@ class SettingsDataStore(context: Context) {
             enableBootStart = prefs[ENABLE_BOOT_START] ?: false,
             enableJobHuntMode = prefs[ENABLE_JOB_HUNT_MODE] ?: false,
             enableSilenceUnknown = prefs[ENABLE_SILENCE_UNKNOWN] ?: false,
-            enableCallScreening = prefs[ENABLE_CALL_SCREENING] ?: false
+            enableCallScreening = prefs[ENABLE_CALL_SCREENING] ?: false,
+            enableBlockNonContacts = prefs[ENABLE_BLOCK_NON_CONTACTS] ?: false
         )
     }
 
@@ -82,6 +84,10 @@ class SettingsDataStore(context: Context) {
     suspend fun updateCallScreening(enabled: Boolean) {
         dataStore.edit { it[ENABLE_CALL_SCREENING] = enabled }
     }
+
+    suspend fun updateBlockNonContacts(enabled: Boolean) {
+        dataStore.edit { it[ENABLE_BLOCK_NON_CONTACTS] = enabled }
+    }
 }
 
 data class AppSettings(
@@ -92,5 +98,6 @@ data class AppSettings(
     val enableBootStart: Boolean = false,
     val enableJobHuntMode: Boolean = false,
     val enableSilenceUnknown: Boolean = false,
-    val enableCallScreening: Boolean = false
+    val enableCallScreening: Boolean = false,
+    val enableBlockNonContacts: Boolean = false
 )

@@ -20,6 +20,12 @@ interface MarkCacheDao {
     @Query("SELECT COUNT(*) FROM mark_cache")
     suspend fun count(): Int
 
+    @Query("SELECT * FROM mark_cache WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): MarkCacheEntity?
+
+    @Query("DELETE FROM mark_cache WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("DELETE FROM mark_cache")
     suspend fun clearAll()
 }

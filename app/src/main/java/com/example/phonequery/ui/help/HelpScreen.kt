@@ -1,21 +1,34 @@
 package com.example.phonequery.ui.help
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.ExperimentalMaterial3Api
+import com.example.phonequery.ui.theme.AppCard
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -34,11 +47,10 @@ fun HelpScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            HelpCard(title = "一、固定电话（座机）编码规则") {
+            ExpandableHelpCard(title = "一、固定电话（座机）编码规则", initiallyExpanded = true) {
                 Paragraph("国内固定电话由「区号 + 本地用户号码」两部分组成。")
                 SubTitle("1. 区号（以 0 开头）")
                 Bullets(
@@ -74,7 +86,7 @@ fun HelpScreen() {
                 Paragraph("在「黑白名单」里输入区号（如 010、0755）并选择「号段/区号」类型，即可整段屏蔽该地区的全部固话来电，应对异地营销骚扰。")
             }
 
-            HelpCard(title = "二、手机号码规律") {
+            ExpandableHelpCard(title = "二、手机号码规律") {
                 Paragraph("中国大陆手机号均为 11 位，以 1 开头，第二位为 3～9。其结构可拆为三段：")
                 Bullets(
                     listOf(
@@ -105,7 +117,7 @@ fun HelpScreen() {
                 )
             }
 
-            HelpCard(title = "三、本应用如何识别与拦截") {
+            ExpandableHelpCard(title = "三、本应用如何识别与拦截") {
                 Bullets(
                     listOf(
                         "离线号段库：根据前 7 位判断归属地，断网也能用",
@@ -116,33 +128,48 @@ fun HelpScreen() {
                     )
                 )
             }
-
-            Text(
-                text = "数据说明：归属地与号段基于公开号段规则与本地库；在线标记来自第三方聚合接口，仅供参考，最终是否接听请以实际场景为准。请勿将本工具用于批量查询或倒卖他人信息。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
         }
     }
 }
 
 @Composable
-private fun HelpCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+private fun ExpandableHelpCard(
+    title: String,
+    initiallyExpanded: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    var expanded by remember { mutableStateOf(initiallyExpanded) }
+    AppCard(modifier = Modifier.clickable { expanded = !expanded }) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
             )
-            content()
+            Icon(
+                imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column(
+                modifier = Modifier.padding(top = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                content()
+            }
         }
     }
 }

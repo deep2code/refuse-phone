@@ -21,6 +21,7 @@ import androidx.core.app.NotificationCompat
 import com.example.phonequery.MainActivity
 import com.example.phonequery.R
 import com.example.phonequery.data.PhoneRepository
+import com.example.phonequery.data.ContactChecker
 import com.example.phonequery.data.SettingsDataStore
 import com.example.phonequery.db.AppDatabase
 import com.example.phonequery.model.PhoneInfo
@@ -85,6 +86,26 @@ class CallHandlerService : Service() {
                     showFloatingWindow(number, PhoneInfo(number = number), isWhitelist = true)
                 }
                 return@launch
+            }
+
+            // 1.5 非通讯录拦截：开启「仅放行通讯录」且来电不在通讯录中，直接挂断。
+            //     未授予 READ_CONTACTS 时 isInContacts 恒为 false，会误拦通讯录号码，故需先校验权限。
+            if (settings.enableBlockNonContacts && ContactChecker.hasPermission(this@CallHandlerService)) {
+                val inContacts = ContactChecker.isInContacts(this@CallHandlerService, number)
+                if (!inContacts) {
+                    Log.d(TAG, "号码 $number 不在通讯录，按「仅放行通讯录」拦截")
+                    if (settings.enableAutoHangup) {
+                        endCall()
+                    }
+                    if (settings.enableFloatingWindow) {
+                        showFloatingWindow(
+                            number,
+                            PhoneInfo(number = number, errorMessage = "非通讯录号码，已拦截"),
+                            isWhitelist = false
+                        )
+                    }
+                    return@launch
+                }
             }
 
             // 2. 黑名单本地快速判断：命中则立即挂断，不再等待在线查询
@@ -245,7 +266,7 @@ class CallHandlerService : Service() {
                 NotificationCompat.Builder(this, SILENT_CHANNEL_ID)
                     .setContentTitle("陌生来电（已静音）")
                     .setContentText(text)
-                    .setSmallIcon(R.drawable.ic_launcher_foreground)
+                    .setSmallIcon(R.drawable.ic_notification)
                     .setContentIntent(pendingIntent)
                     .setAutoCancel(true)
                     .build()
@@ -327,7 +348,7 @@ class CallHandlerService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
             .setContentText("正在监听来电…")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .build()

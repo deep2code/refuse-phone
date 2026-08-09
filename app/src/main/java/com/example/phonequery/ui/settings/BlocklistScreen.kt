@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AssistChip
@@ -20,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import com.example.phonequery.ui.theme.AppCard
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,7 +49,7 @@ import com.example.phonequery.db.BlocklistEntity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BlocklistScreen(viewModel: SettingsViewModel) {
+fun BlocklistScreen(viewModel: SettingsViewModel, onBack: () -> Unit = { }) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableStateOf(0) }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -56,7 +58,15 @@ fun BlocklistScreen(viewModel: SettingsViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.blocklist_title)) }
+                title = { Text(stringResource(R.string.blocklist_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back_to_home)
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -188,14 +198,7 @@ private fun QuickBlockCard(
     onAreaCodeChange: (String) -> Unit,
     onBlockArea: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+    AppCard {
             Text(
                 text = stringResource(R.string.quick_block_title),
                 style = MaterialTheme.typography.titleMedium
@@ -231,7 +234,6 @@ private fun QuickBlockCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
     }
 }
 
@@ -241,14 +243,10 @@ private fun BlocklistItem(
     onDelete: () -> Unit
 ) {
     val isPrefix = entity.type == BlocklistEntity.TYPE_PREFIX
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
+    AppCard {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {

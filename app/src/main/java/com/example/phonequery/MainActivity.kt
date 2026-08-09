@@ -14,6 +14,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.example.phonequery.ui.PhoneQueryViewModel
 import com.example.phonequery.ui.settings.PhoneQueryApp
 import com.example.phonequery.ui.settings.SettingsViewModel
@@ -50,6 +52,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 沉浸式全屏（edge-to-edge）：利用 nova 8 SE 的 20:9 长屏，
+        // 内容安全内边距由 PhoneQueryApp 的 Scaffold 自动处理，不被刘海/状态栏遮挡
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = true
+        insetsController.isAppearanceLightNavigationBars = true
 
         if (requiredPermissions.any {
                 ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED

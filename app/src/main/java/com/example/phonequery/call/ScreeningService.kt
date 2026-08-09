@@ -6,6 +6,7 @@ import android.telecom.CallScreeningService
 import android.telecom.CallScreeningService.CallResponse
 import android.util.Log
 import com.example.phonequery.data.CodeNumberRepository
+import com.example.phonequery.data.ContactChecker
 import com.example.phonequery.data.MarkCacheRepository
 import com.example.phonequery.data.PhoneAttributionRepository
 import com.example.phonequery.data.SettingsDataStore
@@ -87,21 +88,30 @@ class ScreeningService : CallScreeningService() {
             ?.let { CodeNumberRepository(ctx).toDisplay(it) }
         codeInfo?.let { attrParts += it }
 
+        // 3.5 非通讯录拦截：开启「仅放行通讯录」且号码不在通讯录中。
+        //     必须已授予 READ_CONTACTS，否则 isInContacts 会恒为 false，
+        //     导致「连通讯录号码也被误拦」的严重问题。
+        val blockNonContacts = settings.enableBlockNonContacts &&
+            ContactChecker.hasPermission(ctx) &&
+            !ContactChecker.isInContacts(ctx, digits)
+
         val name = when {
             isBlacklisted -> "黑名单号码"
+            blockNonContacts -> "非通讯录号码"
             spamDesc != null -> spamDesc
             attrParts.isNotEmpty() -> attrParts.joinToString(" · ")
             else -> null
         }
         val description = when {
             isBlacklisted -> "已加入黑名单，来电将被拦截"
+            blockNonContacts -> "不在通讯录，已自动拦截"
             spamDesc != null -> "疑似骚扰/诈骗：$spamDesc"
             attrParts.isNotEmpty() -> attrParts.joinToString(" · ")
             else -> null
         }
 
-        // 4. 拦截决策：本地黑名单 或（骚扰标记 且 用户开启自动挂断 + 骚扰自动挂断）
-        val shouldBlock = isBlacklisted ||
+        // 4. 拦截决策：本地黑名单 或 非通讯录 或（骚扰标记 且 用户开启自动挂断 + 骚扰自动挂断）
+        val shouldBlock = isBlacklisted || blockNonContacts ||
             (spamDesc != null && settings.enableAutoHangup && settings.enableSpamAutoHangup)
 
         if (shouldBlock) {

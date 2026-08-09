@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
@@ -47,7 +48,12 @@ class FloatingWindowManager(private val context: Context) {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = 120
+            // 避开刘海/状态栏：按屏幕密度 + 刘海安全区定位，不再写死像素
+            y = computeTopInset() + (8 * context.resources.displayMetrics.density).toInt()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
         }
 
         val view = LayoutInflater.from(context).inflate(R.layout.floating_call_window, null)
@@ -139,5 +145,26 @@ class FloatingWindowManager(private val context: Context) {
 
     private fun hasPermission(): Boolean {
         return Settings.canDrawOverlays(context)
+    }
+
+    /**
+     * 计算悬浮窗顶部安全内边距（状态栏 + 刘海），把来电卡片移出刘海区域。
+     * nova 8 SE 为水滴屏，卡片若贴顶会压在刘海上。
+     */
+    @Suppress("DEPRECATION")
+    private fun computeTopInset(): Int {
+        val density = context.resources.displayMetrics.density
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val insets = windowManager.currentWindowMetrics.windowInsets
+                .getInsetsIgnoringVisibility(
+                    WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout()
+                )
+            insets.top
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+            if (id > 0) context.resources.getDimensionPixelSize(id) else (24 * density).toInt()
+        } else {
+            (24 * density).toInt()
+        }
     }
 }

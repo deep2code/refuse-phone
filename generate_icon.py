@@ -8,15 +8,28 @@ SIZES = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
 
 
 def draw_phone(d, size, color):
-    # 文字下方的小电话手柄：两端圆 + 中间粗线，整体略斜
-    cx, cy = size / 2, size * 0.74
-    r = int(size * 0.055)
-    lw = int(size * 0.05)
-    left = (cx - size * 0.14, cy + size * 0.055)
-    right = (cx + size * 0.14, cy - size * 0.055)
-    d.line([left, right], fill=color, width=lw)
-    d.ellipse([left[0] - r, left[1] - r, left[0] + r, left[1] + r], fill=color)
-    d.ellipse([right[0] - r, right[1] - r, right[0] + r, right[1] + r], fill=color)
+    # 文字下方的手机图标：圆角矩形机身 + 白色屏幕 + 顶部听筒
+    s = size
+    cx = s / 2
+    pw = s * 0.24          # 机身宽
+    ph = s * 0.30          # 机身高
+    top = s * 0.595
+    left = cx - pw / 2
+    right = cx + pw / 2
+    bottom = top + ph
+    r = s * 0.035          # 机身圆角半径
+    # 机身（黑色实心圆角矩形）
+    d.rounded_rectangle([left, top, right, bottom], radius=r, fill=color)
+    # 屏幕（白色内嵌圆角矩形）
+    inset = s * 0.028
+    d.rounded_rectangle([left + inset, top + inset, right - inset, bottom - inset],
+                        radius=r * 0.65, fill=(255, 255, 255, 255))
+    # 听筒（顶部小黑条）
+    sw = s * 0.09
+    sh = s * 0.013
+    sy = top + inset * 0.8
+    d.rounded_rectangle([cx - sw / 2, sy, cx + sw / 2, sy + sh],
+                        radius=sh / 2, fill=color)
 
 
 def make_foreground(size):

@@ -101,6 +101,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun setBlockNonContacts(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsDataStore.updateBlockNonContacts(enabled)
+        }
+    }
+
     val hasSeenSetupGuide: Flow<Boolean> = settingsDataStore.hasSeenSetupGuide
 
     fun markSetupGuideSeen() {

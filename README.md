@@ -1,4 +1,4 @@
-# 没骚扰 · Refuse Phone
+# 反骚扰 · Refuse Phone
 
 <p align="center">
   <img src="docs/assets/harmonyos-support.png" alt="HarmonyOS 支持矩阵" width="540">
@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/AGP-8.9.0-green.svg" alt="AGP 8.9.0">
 </p>
 
-**没骚扰** 是一款 Android 来电识别与骚扰拦截应用：输入号码可查归属地、运营商、骚扰标记；来电时自动识别并在命中黑名单或骚扰规则时直接拦截。核心拦截基于系统 `CallScreeningService`，无需常驻前台，也无需替换系统拨号应用。
+**反骚扰** 是一款 Android 来电识别与骚扰拦截应用：输入号码可查归属地、运营商、骚扰标记；来电时自动识别并在命中黑名单或骚扰规则时直接拦截。核心拦截基于系统 `CallScreeningService`，无需常驻前台，也无需替换系统拨号应用。
 
 ---
 

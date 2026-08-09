@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">没骚扰</string>
+    <string name="app_name">反骚扰</string>
     <string name="help_title">帮助</string>
 
     <!-- 数据源状态 -->
@@ -19,9 +19,16 @@
     <string name="data_source_attribution">手机号归属地：lalakii/phonedata 内置库 + 可选 phonedata.db（scripts/fetch_phonedata.py 生成，可刷新）</string>
     <string name="setting_call_screening">系统级来电识别</string>
     <string name="setting_call_screening_desc">通过 CallScreeningService 在系统来电界面显示归属地/标记；开启需授权「来电筛选」角色</string>
+    <string name="setting_block_non_contacts">仅放行通讯录（拦截其余所有）</string>
+    <string name="setting_block_non_contacts_desc">开启后，通讯录以外的所有来电一律拦截；依赖「系统级来电识别」与「读取通讯录」权限</string>
+    <string name="block_non_contacts_dep_hint">该拦截由系统级来电识别实现：请同时开启上方「系统级来电识别」并授予「来电筛选」角色，并授予「读取通讯录」权限，否则不生效。</string>
+    <string name="back_to_home">返回主界面</string>
     <string name="call_screening_role_missing">未获得「来电筛选」角色：系统级识别未生效，请在弹出的系统授权中确认</string>
     <string name="call_screening_unsupported">当前系统版本不支持系统级来电筛选（需 Android 10+）</string>
     <string name="hint_input_phone">请输入手机号或固话号码</string>
+    <string name="type_mobile">手机</string>
+    <string name="type_landline">固话</string>
+    <string name="seg_input_hint">分段输入，输满自动跳下一段；最后一段回车或填满即自动查询</string>
     <string name="btn_query">查询</string>
     <string name="result_title">查询结果</string>
     <string name="empty_result">请输入号码后点击查询</string>
@@ -42,6 +49,25 @@
     <string name="offline_tag">离线数据</string>
     <string name="online_tag">在线数据</string>
     <string name="cached_tag">本地缓存</string>
+
+    <!-- 查询结果状态 + 主动标记 -->
+    <string name="status_title">号码状态</string>
+    <string name="label_blacklist_status">黑名单</string>
+    <string name="label_whitelist_status">白名单</string>
+    <string name="label_contacts_status">通讯录</string>
+    <string name="label_online_mark_status">在线标记</string>
+    <string name="status_yes">是</string>
+    <string name="status_no">否</string>
+    <string name="contacts_not_authorized">未授权读取通讯录</string>
+    <string name="my_mark_title">我的标记</string>
+    <string name="my_mark_current">当前标记</string>
+    <string name="my_mark_none">未标记</string>
+    <string name="mark_spam">骚扰</string>
+    <string name="mark_scam">诈骗</string>
+    <string name="mark_ad">广告营销</string>
+    <string name="mark_normal">正常</string>
+    <string name="mark_other">其他</string>
+    <string name="btn_clear_my_mark">清除我的标记</string>
 
     <string name="enterprise_title">相似企业推断</string>
     <string name="enterprise_location_hint">区号 %1$s 对应城市：%2$s %3$s</string>
