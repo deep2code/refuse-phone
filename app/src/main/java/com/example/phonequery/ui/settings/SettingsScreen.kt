@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.example.phonequery.BuildConfig
 import com.example.phonequery.R
 import com.example.phonequery.call.CallScreeningRole
+import com.example.phonequery.call.DefaultDialerRole
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberPermissionState
@@ -142,6 +143,16 @@ fun SettingsScreen(
                         checked = settings.enableAutoHangup,
                         onCheckedChange = { viewModel.setAutoHangup(it) }
                     )
+
+                    // 未持有默认拨号角色时（如 HarmonyOS），主动 endCall 挂断不可用，
+                    // 提示用户改用「系统级来电识别」做拦截。
+                    if (!DefaultDialerRole.isHeld(context)) {
+                        Text(
+                            text = stringResource(R.string.auto_hangup_unsupported_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
 
                     if (settings.enableAutoHangup) {
                         SettingSwitchItem(

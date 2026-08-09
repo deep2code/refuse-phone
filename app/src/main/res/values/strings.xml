@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">没骚扰</string>
-    <string name="help_title">帮助 · 号码编码规则</string>
+    <string name="help_title">帮助</string>
 
     <!-- 数据源状态 -->
     <string name="data_sources_title">在线数据源</string>
@@ -65,6 +65,7 @@
     <string name="setting_floating_window_desc">来电时在屏幕顶部弹出号码信息卡片</string>
     <string name="setting_auto_hangup">自动挂断</string>
     <string name="setting_auto_hangup_desc">识别到黑名单或骚扰号码时自动挂断</string>
+    <string name="auto_hangup_unsupported_hint">本机系统（如 HarmonyOS）不支持第三方默认拨号应用，主动挂断来电不可用。请开启「系统级来电识别」，黑名单 / 骚扰号码仍会被系统直接拦截。</string>
     <string name="setting_blacklist_only">仅黑名单</string>
     <string name="setting_blacklist_only_desc">只挂断黑名单号码，忽略在线标记</string>
     <string name="setting_spam_auto_hangup">骚扰自动挂断</string>
@@ -112,8 +113,9 @@
     <string name="setup_group_permissions">运行时权限</string>
     <string name="permission_overlay">悬浮窗（显示在其他应用上层）</string>
     <string name="setup_overlay_desc">来电时显示悬浮窗必须开启，需在系统设置中手动允许</string>
-    <string name="setup_default_dialer">设为默认拨号应用</string>
-    <string name="setup_default_dialer_desc">Android 9+ 自动挂断来电的前提，需将本应用设为默认电话应用</string>
+    <string name="setup_default_dialer">设为默认拨号应用（可选）</string>
+    <string name="setup_default_dialer_desc">仅「自动挂断」需要；来电识别与拦截可用「系统级来电识别」替代。部分系统（如 HarmonyOS）不支持第三方设为默认拨号，可跳过</string>
+    <string name="setup_default_dialer_optional_hint">部分系统（如 HarmonyOS）不允许第三方应用设为默认拨号，可跳过此步；黑名单 / 骚扰拦截请改用「系统级来电识别」。</string>
     <string name="setup_autostart_title">自启动 / 后台运行</string>
     <string name="setup_autostart_desc">小米 / 华为 / OPPO / vivo 等会限制后台，需在系统「自启动」或「电池优化」中将本应用设为允许，否则开机自启与来电唤醒可能失效。</string>
     <string name="setup_open_app_settings">打开应用设置</string>

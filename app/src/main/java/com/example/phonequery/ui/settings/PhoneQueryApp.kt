@@ -29,7 +29,7 @@ import com.example.phonequery.ui.help.HelpScreen
 import com.example.phonequery.ui.setup.PermissionGuideScreen
 
 sealed class Screen(val route: String, val titleRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    object Home : Screen("home", R.string.app_name, Icons.Default.Home)
+    object Home : Screen("home", R.string.btn_query, Icons.Default.Home)
     object Settings : Screen("settings", R.string.settings_title, Icons.Default.Settings)
     object Help : Screen("help", R.string.help_title, Icons.Default.Help)
 }

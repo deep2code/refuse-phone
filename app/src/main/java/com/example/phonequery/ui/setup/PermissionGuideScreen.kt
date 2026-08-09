@@ -153,25 +153,37 @@ fun PermissionGuideScreen(
                 }
             }
 
-            // 默认拨号应用（自动挂断前提）
+            // 默认拨号应用（自动挂断前提，非必需）
             Card(Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                 key(refresh) {
-                    GuideRow(
-                        label = stringResource(R.string.setup_default_dialer),
-                        desc = stringResource(R.string.setup_default_dialer_desc),
-                        granted = isDefaultDialer(),
-                        onRequest = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                val rm = context.getSystemService(RoleManager::class.java)
-                                val intent = rm?.createRequestRoleIntent(RoleManager.ROLE_DIALER)
-                                if (intent != null) dialerLauncher.launch(intent)
-                            } else {
-                                val intent = Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER)
-                                    .putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
-                                context.startActivity(intent)
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        GuideRow(
+                            label = stringResource(R.string.setup_default_dialer),
+                            desc = stringResource(R.string.setup_default_dialer_desc),
+                            granted = isDefaultDialer(),
+                            onRequest = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                    val rm = context.getSystemService(RoleManager::class.java)
+                                    val intent = rm?.createRequestRoleIntent(RoleManager.ROLE_DIALER)
+                                    if (intent != null) dialerLauncher.launch(intent)
+                                } else {
+                                    val intent = Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER)
+                                        .putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
+                                    context.startActivity(intent)
+                                }
                             }
+                        )
+                        if (!isDefaultDialer()) {
+                            Text(
+                                text = stringResource(R.string.setup_default_dialer_optional_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    )
+                    }
                 }
             }
 
