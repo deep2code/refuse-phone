@@ -5,19 +5,29 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 盾牌：白色，象征「防护 / 把骚扰挡在外面」 -->
+    <!-- 白色圆环：禁令标志外圈（用 path 画圆） -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M28,24 L80,24 L80,56 C80,70 68,82 54,88 C40,82 28,70 28,56 Z" />
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="7"
+        android:pathData="M54,14 a40,40 0 1,0 0,80 a40,40 0 1,0 0,-80 Z" />
 
-    <!-- 电话听筒：信任蓝，置于盾牌内；缩放并居中到 (54,50) -->
+    <!-- 白色斜杠：禁止语义，划掉电话 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M32,32 L76,76" />
+
+    <!-- 黑色电话听筒：被禁止的骚扰电话 -->
     <group
         android:scaleX="1.7"
         android:scaleY="1.7"
-        android:translateX="33.5"
-        android:translateY="29.5">
+        android:translateX="33.6"
+        android:translateY="35.3">
         <path
-            android:fillColor="#1A73E8"
+            android:fillColor="#212121"
             android:pathData="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
     </group>
 </vector>
