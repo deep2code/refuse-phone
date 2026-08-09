@@ -28,7 +28,13 @@
     <string name="hint_input_phone">请输入手机号或固话号码</string>
     <string name="type_mobile">手机</string>
     <string name="type_landline">固话</string>
-    <string name="seg_input_hint">分段输入，输满自动跳下一段；最后一段回车或填满即自动查询</string>
+    <string name="seg_input_hint">自动识别手机 / 固话：固话完整格式为「0 + 长途区号 + 本地 7/8 位座机号」；输入即自动解析，回车或点查询即可</string>
+    <string name="landline_parse_title">固定电话编码解析</string>
+    <string name="landline_parse_format">完整格式：0 + 长途区号(%1$s) + 本地 %2$d 位座机号</string>
+    <string name="landline_parse_location">长途区号 %1$s → 归属：%2$s %3$s</string>
+    <string name="landline_parse_result_title">固话编码规律</string>
+    <string name="label_local_number">本地号码</string>
+    <string name="label_attribution">归属地</string>
     <string name="btn_query">查询</string>
     <string name="result_title">查询结果</string>
     <string name="empty_result">请输入号码后点击查询</string>

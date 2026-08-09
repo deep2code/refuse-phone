@@ -16,9 +16,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
-import androidx.compose.runtime.remember
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
@@ -81,11 +78,13 @@ fun PhoneQueryScreen(viewModel: PhoneQueryViewModel) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            SegmentedPhoneInput(
+            PhoneInput(
+                number = uiState.number,
                 inputType = uiState.inputType,
-                segments = uiState.segments,
+                landlineBreakdown = uiState.landlineBreakdown,
+                landlineValidation = uiState.landlineValidation,
+                onNumberChange = viewModel::onNumberChange,
                 onInputTypeChange = viewModel::onInputTypeChange,
-                onSegmentChange = viewModel::onSegmentChange,
                 onQuery = viewModel::query,
                 enabled = !uiState.isLoading
             )
@@ -125,6 +124,8 @@ fun PhoneQueryScreen(viewModel: PhoneQueryViewModel) {
                     isInContacts = uiState.isInContacts,
                     contactsPermissionGranted = uiState.contactsPermissionGranted,
                     userMark = uiState.userMark,
+                    landlineBreakdown = uiState.landlineBreakdown,
+                    landlineValidation = uiState.landlineValidation,
                     onAddToBlacklist = viewModel::addToBlacklist,
                     onMark = viewModel::markNumber,
                     onClearMark = viewModel::clearUserMark
@@ -159,17 +160,16 @@ fun PhoneQueryScreen(viewModel: PhoneQueryViewModel) {
 }
 
 @Composable
-private fun SegmentedPhoneInput(
+private fun PhoneInput(
+    number: String,
     inputType: InputType,
-    segments: List<String>,
+    landlineBreakdown: LandlineLocation?,
+    landlineValidation: String?,
+    onNumberChange: (String) -> Unit,
     onInputTypeChange: (InputType) -> Unit,
-    onSegmentChange: (Int, String) -> Unit,
     onQuery: () -> Unit,
     enabled: Boolean
 ) {
-    val lens = if (inputType == InputType.MOBILE) listOf(3, 4, 4) else listOf(3, 8)
-    val focusRequesters = remember(inputType) { List(lens.size) { FocusRequester() } }
-
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
@@ -184,42 +184,67 @@ private fun SegmentedPhoneInput(
             )
         }
 
-        Row(
+        OutlinedTextField(
+            value = number,
+            onValueChange = onNumberChange,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            lens.forEachIndexed { index, len ->
-                OutlinedTextField(
-                    value = segments.getOrElse(index) { "" },
-                    onValueChange = { raw ->
-                        onSegmentChange(index, raw)
-                        val digits = raw.filter { it.isDigit() }
-                        if (index < lens.size - 1) {
-                            if (digits.length >= len) focusRequesters[index + 1].requestFocus()
-                        } else if (digits.length >= len) {
-                            onQuery()
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequesters[index]),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
-                        imeAction = if (index == lens.size - 1) ImeAction.Search else ImeAction.Next
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onNext = {
-                            if (index < lens.size - 1) focusRequesters[index + 1].requestFocus()
-                        },
-                        onSearch = { onQuery() },
-                        onDone = { onQuery() }
-                    ),
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.titleMedium.copy(textAlign = TextAlign.Center),
-                    enabled = enabled
+            placeholder = { Text(stringResource(R.string.hint_input_phone)) },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Search
+            ),
+            keyboardActions = KeyboardActions(onSearch = { onQuery() }),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.titleMedium.copy(textAlign = TextAlign.Center),
+            enabled = enabled
+        )
+
+        // 固话实时解析预览：自动适应 0 + 长途区号 + 本地 7/8 位 规律
+        if (inputType == InputType.LANDLINE && landlineBreakdown != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.landline_parse_title),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.landline_parse_format,
+                            landlineBreakdown.areaCode,
+                            landlineBreakdown.localNumber.length
+                        ),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.landline_parse_location,
+                            landlineBreakdown.areaCode,
+                            landlineBreakdown.city,
+                            landlineBreakdown.province ?: ""
+                        ),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
+        }
+
+        if (landlineValidation != null) {
+            Text(
+                text = landlineValidation,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
         }
 
         Text(
@@ -239,6 +264,8 @@ private fun ResultCard(
     isInContacts: Boolean,
     contactsPermissionGranted: Boolean,
     userMark: String?,
+    landlineBreakdown: LandlineLocation?,
+    landlineValidation: String?,
     onAddToBlacklist: () -> Unit,
     onMark: (String) -> Unit,
     onClearMark: () -> Unit
@@ -280,6 +307,26 @@ private fun ResultCard(
                 label = stringResource(R.string.label_number_type),
                 value = result.numberType.displayName
             )
+
+            // —— 固话编码规律解析（0 + 长途区号 + 本地 7/8 位）——
+            if (landlineBreakdown != null) {
+                SectionTitle(stringResource(R.string.landline_parse_result_title))
+                InfoRow(stringResource(R.string.label_area_code), landlineBreakdown.areaCode)
+                InfoRow(stringResource(R.string.label_local_number), landlineBreakdown.localNumber)
+                InfoRow(
+                    stringResource(R.string.label_attribution),
+                    listOf(landlineBreakdown.province, landlineBreakdown.city)
+                        .filter { !it.isNullOrBlank() }
+                        .joinToString(" ")
+                )
+            }
+            landlineValidation?.let { msg ->
+                Text(
+                    text = msg,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
             InfoRow(label = stringResource(R.string.label_province), value = result.province)
             InfoRow(label = stringResource(R.string.label_city), value = result.city)
             InfoRow(label = stringResource(R.string.label_carrier), value = result.carrier)

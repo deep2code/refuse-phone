@@ -3,6 +3,7 @@ package com.example.phonequery.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.phonequery.data.AreaCodeHelper
 import com.example.phonequery.data.BlocklistRepository
 import com.example.phonequery.data.ContactChecker
 import com.example.phonequery.data.EnterpriseRepository
@@ -24,43 +25,64 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
     private val enterpriseRepository = EnterpriseRepository(application.applicationContext)
     private val blocklistRepository = BlocklistRepository(application.applicationContext)
     private val markCacheRepository = MarkCacheRepository(application.applicationContext)
+    private val areaCodeHelper = AreaCodeHelper(application.applicationContext)
 
     private val _uiState = MutableStateFlow(PhoneQueryUiState())
     val uiState: StateFlow<PhoneQueryUiState> = _uiState
 
+    /**
+     * 自动识别号码类型（查询自动适应）：
+     * - 国内固话以 0 开头，完整格式 = 0 + 长途区号 + 本地 7/8 位座机号
+     * - 手机以 1 开头且 11 位
+     */
+    private fun detectType(raw: String): InputType? {
+        val digits = raw.replace(Regex("[^0-9]"), "")
+        return when {
+            digits.startsWith("0") -> InputType.LANDLINE
+            digits.startsWith("1") && digits.length == 11 -> InputType.MOBILE
+            else -> null
+        }
+    }
+
+    fun onNumberChange(raw: String) {
+        val digits = raw.filter { it.isDigit() || it == '+' }
+        // 自动适应：根据输入自动推断固话 / 手机，并实时解析固话编码规律
+        val detected = detectType(digits)
+        val (breakdown, validation) = if (digits.startsWith("0") && digits.length >= 10) {
+            computeLandline(digits)
+        } else (null to null)
+        _uiState.value = _uiState.value.copy(
+            number = digits,
+            inputType = detected ?: _uiState.value.inputType,
+            landlineBreakdown = breakdown,
+            landlineValidation = validation,
+            result = null,
+            similarEnterprises = emptyList(),
+            landlineLocation = null,
+            enterpriseError = null
+        )
+    }
+
     fun onInputTypeChange(type: InputType) {
         if (type == _uiState.value.inputType) return
-        val lens = segmentLengths(type)
-        _uiState.value = _uiState.value.copy(
-            inputType = type,
-            segments = List(lens.size) { "" },
-            number = ""
-        )
+        _uiState.value = _uiState.value.copy(inputType = type)
     }
 
-    fun onSegmentChange(index: Int, raw: String) {
-        val digits = raw.filter { it.isDigit() }
-        val lens = segmentLengths(_uiState.value.inputType)
-        val segs = _uiState.value.segments.toMutableList()
-        // 当前段放置前 lens[index] 位，多余数字向后段顺延（支持整串粘贴）
-        segs[index] = digits.take(lens[index])
-        var overflow = digits.drop(lens[index])
-        var i = index + 1
-        while (overflow.isNotEmpty() && i < segs.size) {
-            val take = overflow.take(lens[i])
-            segs[i] = take
-            overflow = overflow.drop(take.length)
-            i++
+    /**
+     * 解析固话编码规律：0 + 长途区号 + 本地 7/8 位座机号
+     * @return 解析结果（区号/本地号/归属地）与本地号位数校验提示
+     */
+    private fun computeLandline(digits: String): Pair<LandlineLocation?, String?> {
+        val loc = areaCodeHelper.parseLandline(digits)
+        return if (loc != null) {
+            val localLen = loc.localNumber.length
+            val validation = if (localLen !in 7..8) {
+                "本地座机号应为 7 或 8 位（当前 ${localLen} 位）。完整格式：0 + 长途区号(${loc.areaCode}) + 本地 ${localLen} 位"
+            } else null
+            loc to validation
+        } else {
+            null to "未能识别长途区号，请确认号码格式：0 + 长途区号 + 本地 7/8 位座机号"
         }
-        _uiState.value = _uiState.value.copy(
-            segments = segs,
-            number = segs.joinToString("")
-        )
-    }
-
-    private fun segmentLengths(type: InputType): List<Int> = when (type) {
-        InputType.MOBILE -> listOf(3, 4, 4)
-        InputType.LANDLINE -> listOf(3, 8)
     }
 
     fun query() {
@@ -93,6 +115,12 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
             } else false
             val userMark = markCacheRepository.getUserMark(digits)
 
+            // 固话编码规律适配（与输入实时解析保持一致）
+            val (landlineBreakdown, landlineValidation) = if (number.startsWith("0")
+                || result.numberType == NumberType.LANDLINE) {
+                computeLandline(number)
+            } else (null to null)
+
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
                 result = result,
@@ -100,11 +128,15 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
                 isInWhitelist = inWhite,
                 isInContacts = inContacts,
                 contactsPermissionGranted = contactsGranted,
-                userMark = userMark
+                userMark = userMark,
+                landlineBreakdown = landlineBreakdown,
+                landlineValidation = landlineValidation
             )
 
             // 如果是固话，自动推断相似企业
-            if (result.numberType == NumberType.LANDLINE || result.numberType == NumberType.UNKNOWN) {
+            if (result.numberType == NumberType.LANDLINE
+                || number.startsWith("0")
+                || result.numberType == NumberType.UNKNOWN) {
                 querySimilarEnterprises(number)
             }
         }
@@ -181,7 +213,6 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
 
 data class PhoneQueryUiState(
     val inputType: InputType = InputType.MOBILE,
-    val segments: List<String> = listOf("", "", ""),
     val number: String = "",
     val isLoading: Boolean = false,
     val result: PhoneInfo? = null,
@@ -194,5 +225,7 @@ data class PhoneQueryUiState(
     val isInWhitelist: Boolean = false,
     val isInContacts: Boolean = false,
     val contactsPermissionGranted: Boolean = false,
-    val userMark: String? = null
+    val userMark: String? = null,
+    val landlineBreakdown: LandlineLocation? = null,
+    val landlineValidation: String? = null
 )
