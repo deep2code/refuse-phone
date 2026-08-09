@@ -1,9 +1,7 @@
 name: Android CI
 
 on:
-  push:
-    branches: [ "main", "master" ]
-    tags: [ "v*" ]
+  # 不再在每次 push 时自动跑 debug 构建（由 build-release.yml 统一负责自动打包 release）
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
