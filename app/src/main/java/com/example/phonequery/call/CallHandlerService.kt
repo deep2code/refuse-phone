@@ -325,7 +325,7 @@ class CallHandlerService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("号码查询助手")
+            .setContentTitle(getString(R.string.app_name))
             .setContentText("正在监听来电…")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)

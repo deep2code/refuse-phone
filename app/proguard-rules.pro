@@ -1,5 +1,5 @@
-# 号码查询助手 - ProGuard / R8 规则
-# 当前 release 构建 isMinifyEnabled = false，本文件暂不参与混淆；
+# 没骚扰 - ProGuard / R8 规则
+# 当前 release 构建 isMinifyEnabled = true，开启 R8 混淆压缩；
 # 若要开启混淆（isMinifyEnabled = true），以下规则可保证关键能力不被裁掉。
 
 # 四大组件保留
