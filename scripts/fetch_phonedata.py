@@ -4,9 +4,17 @@
 生成「手机号归属地」离线库 phonedata.db（供 refuse-phone 的 PhoneAttributionRepository 使用）。
 
 数据源（任选其一）：
-  1. 默认：xluohome/phonedata 的 phone.dat（二进制：号段 + 省 + 市 + 邮编 + 区号 + 运营商）
+  1. 默认：xluohome/phonedata（hiwjd fork）的 phone.dat —— 号段级归属地（省/市/运营商）
   2. --csv path.csv：phone-segment 风格 CSV，列：prefix,province,city,isp
   3. --dat path.dat：本地已下载的 phone.dat（跳过下载）
+
+phone.dat 二进制格式（xluohome/phonedata 规范）：
+  - 头部 8 字节：4 字节版本号（如 "2511"=25年11月）+ 4 字节首个索引区偏移（uint32 LE）
+  - 记录区（从偏移 8 开始）：每条记录为 "省份|城市|邮编|长途区号\\0"，以 \\0 结束
+  - 索引区（从首个索引区偏移开始）：每条 9 字节
+        [0:4]  手机号前 7 位（uint32 LE 整数）
+        [4:6]  记录区绝对文件偏移（uint16 LE）
+        [6:9]  保留 2 字节 + 1 字节运营商类型（1=移动 2=联通 3=电信 ...）
 
 输出：app/src/main/assets/phonedata.db
   - SQLite，表 segments(prefix INTEGER PRIMARY KEY, province TEXT, city TEXT, isp TEXT)
@@ -48,36 +56,49 @@ def download(url: str, dest: str) -> None:
 
 
 def parse_phone_dat(path: str):
-    """解析 xluohome/phonedata 的 phone.dat。
+    """解析 xluohome/phonedata（hiwjd fork）的 phone.dat 二进制格式。
 
-    文件结构：
-      - 头部 4 字节为版本号（uint32 小端），记录区从 offset=4 开始；
-      - 每条记录：int32 号段(小端) + 5 个以 \\0 结尾的 GBK 字符串
-        （province, city, zipCode, areaCode, isp）。
+    见模块 docstring 中的格式说明：头部 8 字节，记录区从偏移 8 开始，
+    索引区每条 9 字节（4 字节号段 + 2 字节记录偏移 + 2 字节保留 + 1 字节运营商类型）。
     """
     with open(path, "rb") as f:
         data = f.read()
     if len(data) < 8:
         raise ValueError("phone.dat 文件过小或非预期格式")
+
+    first_index_offset = struct.unpack_from("<I", data, 4)[0]
+
+    # 运营商类型映射（phonedata 的 cardtype 字节）
+    card_map = {
+        0: "",
+        1: "中国移动",
+        2: "中国联通",
+        3: "中国电信",
+        4: "中国电信虚拟运营商",
+        5: "中国联通虚拟运营商",
+        6: "中国移动虚拟运营商",
+        7: "中国广电",
+    }
+
     records = []
-    pos = 4
-    n = len(data)
-    while pos + 4 <= n:
-        prefix = struct.unpack_from("<i", data, pos)[0]
-        pos += 4
-        parts = []
-        for _ in range(5):  # province, city, zipCode, areaCode, isp
-            start = pos
-            while pos < n and data[pos] != 0:
-                pos += 1
-            raw = data[start:pos]
-            pos += 1  # 跳过 NUL
-            try:
-                parts.append(raw.decode("gbk"))
-            except Exception:
-                parts.append(raw.decode("utf-8", "ignore"))
-        province, city, _zip, _area, isp = parts
-        records.append((prefix, province, city, isp))
+    idx = data[first_index_offset:]
+    n = len(idx)
+    pos = 0
+    while pos + 9 <= n:
+        prefix = struct.unpack_from("<I", idx, pos)[0]        # 手机号前 7 位（uint32 LE）
+        rec_off = struct.unpack_from("<H", idx, pos + 4)[0]   # 记录区绝对文件偏移（uint16 LE）
+        cardtype = idx[pos + 8]                               # 运营商类型
+        if rec_off < 8 or rec_off >= len(data):
+            pos += 9
+            continue
+        end = data.index(b"\x00", rec_off)
+        rec = data[rec_off:end].decode("utf-8", "ignore")
+        parts = rec.split("|")
+        if len(parts) >= 4:
+            province, city = parts[0], parts[1]
+            isp = card_map.get(cardtype, "")
+            records.append((prefix, province, city, isp))
+        pos += 9
     print(f"[parse] phone.dat 解析得到 {len(records)} 条记录")
     return records
 

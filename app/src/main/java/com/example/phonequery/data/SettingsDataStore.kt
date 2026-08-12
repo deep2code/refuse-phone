@@ -5,6 +5,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -28,6 +30,12 @@ class SettingsDataStore(context: Context) {
         val ENABLE_SILENCE_UNKNOWN = booleanPreferencesKey("enable_silence_unknown")
         val ENABLE_CALL_SCREENING = booleanPreferencesKey("enable_call_screening")
         val ENABLE_BLOCK_NON_CONTACTS = booleanPreferencesKey("enable_block_non_contacts")
+        /** 在线查询总开关：默认关闭（离线优先，保护隐私，不把号码发给第三方） */
+        val ENABLE_ONLINE_LOOKUP = booleanPreferencesKey("enable_online_lookup")
+        /** 拦截动作：block=拒接 / log=放行仅记录 */
+        val INTERCEPT_ACTION = stringPreferencesKey("intercept_action")
+        /** 悬浮窗透明度 0.3~1.0 */
+        val FLOATING_ALPHA = floatPreferencesKey("floating_alpha")
         val HAS_SEEN_SETUP_GUIDE = booleanPreferencesKey("has_seen_setup_guide")
     }
 
@@ -41,7 +49,10 @@ class SettingsDataStore(context: Context) {
             enableJobHuntMode = prefs[ENABLE_JOB_HUNT_MODE] ?: false,
             enableSilenceUnknown = prefs[ENABLE_SILENCE_UNKNOWN] ?: false,
             enableCallScreening = prefs[ENABLE_CALL_SCREENING] ?: false,
-            enableBlockNonContacts = prefs[ENABLE_BLOCK_NON_CONTACTS] ?: false
+            enableBlockNonContacts = prefs[ENABLE_BLOCK_NON_CONTACTS] ?: false,
+            enableOnlineLookup = prefs[ENABLE_ONLINE_LOOKUP] ?: false,
+            interceptAction = prefs[INTERCEPT_ACTION] ?: AppSettings.INTERCEPT_BLOCK,
+            floatingAlpha = prefs[FLOATING_ALPHA] ?: 0.9f
         )
     }
 
@@ -88,6 +99,18 @@ class SettingsDataStore(context: Context) {
     suspend fun updateBlockNonContacts(enabled: Boolean) {
         dataStore.edit { it[ENABLE_BLOCK_NON_CONTACTS] = enabled }
     }
+
+    suspend fun updateOnlineLookup(enabled: Boolean) {
+        dataStore.edit { it[ENABLE_ONLINE_LOOKUP] = enabled }
+    }
+
+    suspend fun updateInterceptAction(action: String) {
+        dataStore.edit { it[INTERCEPT_ACTION] = action }
+    }
+
+    suspend fun updateFloatingAlpha(alpha: Float) {
+        dataStore.edit { it[FLOATING_ALPHA] = alpha.coerceIn(0.3f, 1.0f) }
+    }
 }
 
 data class AppSettings(
@@ -99,5 +122,13 @@ data class AppSettings(
     val enableJobHuntMode: Boolean = false,
     val enableSilenceUnknown: Boolean = false,
     val enableCallScreening: Boolean = false,
-    val enableBlockNonContacts: Boolean = false
-)
+    val enableBlockNonContacts: Boolean = false,
+    val enableOnlineLookup: Boolean = false,
+    val interceptAction: String = INTERCEPT_BLOCK,
+    val floatingAlpha: Float = 0.9f
+) {
+    companion object {
+        const val INTERCEPT_BLOCK = "block"
+        const val INTERCEPT_LOG = "log"
+    }
+}

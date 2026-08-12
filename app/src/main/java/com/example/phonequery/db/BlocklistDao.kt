@@ -22,8 +22,17 @@ interface BlocklistDao {
     @Query("SELECT * FROM blocklist WHERE isBlock = 0 ORDER BY createdAt DESC")
     fun getWhitelist(): Flow<List<BlocklistEntity>>
 
+    @Query("SELECT * FROM blocklist WHERE isBlock = 1 AND type = :type ORDER BY createdAt DESC")
+    fun getByTypeAndBlock(type: String): Flow<List<BlocklistEntity>>
+
+    @Query("SELECT * FROM blocklist WHERE type = :type ORDER BY createdAt DESC")
+    suspend fun getAllByType(type: String): List<BlocklistEntity>
+
     @Query("SELECT * FROM blocklist ORDER BY createdAt DESC")
     fun getAll(): Flow<List<BlocklistEntity>>
+
+    @Query("SELECT * FROM blocklist ORDER BY createdAt DESC")
+    suspend fun getAllOnce(): List<BlocklistEntity>
 
     @Query("SELECT EXISTS(SELECT 1 FROM blocklist WHERE isBlock = 1 AND :number LIKE number || '%')")
     suspend fun isBlacklisted(number: String): Boolean

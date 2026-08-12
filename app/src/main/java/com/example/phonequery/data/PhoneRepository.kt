@@ -19,10 +19,13 @@ import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.Phonenumber
 import com.google.i18n.phonenumbers.geocoding.PhoneNumberOfflineGeocoder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class PhoneRepository(context: Context) {
+
+    private val appContext: Context = context
 
     private val phoneUtil = PhoneNumberUtil.getInstance()
     private val geocoder = PhoneNumberOfflineGeocoder.getInstance()
@@ -118,7 +121,13 @@ class PhoneRepository(context: Context) {
         val cached = runCatching { markCacheRepository.getCachedMark(digits) }.getOrNull()
 
         // 第三层：在线源链（tmini 默认 + 可选 juhe/baidu）
-        val online = queryOnline(cleaned, base.numberType)
+        // 受「在线查询开关」控制：默认关闭（离线优先），开启才会把号码发到第三方网关。
+        val onlineEnabled = try {
+            SettingsDataStore(appContext).settingsFlow.first().enableOnlineLookup
+        } catch (_: Exception) {
+            false
+        }
+        val online = if (onlineEnabled) queryOnline(cleaned, base.numberType) else null
 
         return@withContext if (online != null) {
             val merged = mergeOnlineToPhoneInfo(base, online)

@@ -23,6 +23,10 @@ import com.example.phonequery.R
 import com.example.phonequery.data.PhoneRepository
 import com.example.phonequery.data.ContactChecker
 import com.example.phonequery.data.SettingsDataStore
+import com.example.phonequery.data.BlocklistRepository
+import com.example.phonequery.data.PhoneAttributionRepository
+import com.example.phonequery.data.RecentCallRepository
+import com.example.phonequery.data.AppSettings
 import com.example.phonequery.db.AppDatabase
 import com.example.phonequery.model.PhoneInfo
 import kotlinx.coroutines.CoroutineScope
@@ -41,6 +45,9 @@ class CallHandlerService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var phoneRepository: PhoneRepository
     private lateinit var settingsDataStore: SettingsDataStore
+    private lateinit var blocklistRepository: BlocklistRepository
+    private lateinit var phoneAttributionRepository: PhoneAttributionRepository
+    private lateinit var recentCallRepository: RecentCallRepository
     private lateinit var db: AppDatabase
     private var floatingWindow: FloatingWindowManager? = null
     private var previousRingerMode: Int? = null
@@ -49,6 +56,9 @@ class CallHandlerService : Service() {
         super.onCreate()
         phoneRepository = PhoneRepository(this)
         settingsDataStore = SettingsDataStore(this)
+        blocklistRepository = BlocklistRepository(this)
+        phoneAttributionRepository = PhoneAttributionRepository(this)
+        recentCallRepository = RecentCallRepository(this)
         db = AppDatabase.getInstance(this)
         floatingWindow = FloatingWindowManager(this)
     }
@@ -79,11 +89,19 @@ class CallHandlerService : Service() {
                 return@launch
             }
 
+            val digits = number.replace(Regex("\\D"), "")
+            // 拦截动作：log=仅记录（不实际挂断）；block=默认拒接
+            val allowBlock = settings.interceptAction == AppSettings.INTERCEPT_BLOCK
+            // 本通来电是否被实际拦截（用于「最近来电」留痕）
+            var wasBlocked = false
+
             // 1. 白名单优先（本地快速判断）
-            if (db.blocklistDao().isWhitelisted(number)) {
-                Log.d(TAG, "号码 $number 在白名单中，跳过处理")
+            if (db.blocklistDao().isWhitelisted(number) || (ContactChecker.hasPermission(this@CallHandlerService)
+                        && ContactChecker.isInContacts(this@CallHandlerService, digits))
+            ) {
+                Log.d(TAG, "号码 $number 在白名单/通讯录中，跳过处理")
                 if (settings.enableFloatingWindow) {
-                    showFloatingWindow(number, PhoneInfo(number = number), isWhitelist = true)
+                    showFloatingWindow(number, PhoneInfo(number = number), isWhitelist = true, alpha = settings.floatingAlpha)
                 }
                 return@launch
             }
@@ -94,16 +112,24 @@ class CallHandlerService : Service() {
                 val inContacts = ContactChecker.isInContacts(this@CallHandlerService, number)
                 if (!inContacts) {
                     Log.d(TAG, "号码 $number 不在通讯录，按「仅放行通讯录」拦截")
-                    if (settings.enableAutoHangup) {
-                        endCall()
-                    }
+                    val blocked = settings.enableAutoHangup
+                    if (blocked) endCall()
                     if (settings.enableFloatingWindow) {
                         showFloatingWindow(
                             number,
                             PhoneInfo(number = number, errorMessage = "非通讯录号码，已拦截"),
-                            isWhitelist = false
+                            isWhitelist = false,
+                            alpha = settings.floatingAlpha
                         )
                     }
+                    recordRecentCall(
+                        number = number,
+                        digits = digits,
+                        label = "非通讯录号码，已拦截",
+                        description = null,
+                        blocked = blocked,
+                        spamType = null
+                    )
                     return@launch
                 }
             }
@@ -112,23 +138,45 @@ class CallHandlerService : Service() {
             //    求职模式下：黑名单仍会挂断，但骚扰标记不会自动挂断，避免错过面试电话
             if (settings.enableAutoHangup) {
                 val isBlacklisted = db.blocklistDao().isBlacklisted(number)
-                if (isBlacklisted) {
-                    Log.d(TAG, "号码 $number 命中黑名单，自动挂断")
-                    endCall()
+                // 高级规则（正则 / 归属地）：命中黑名单规则同样立即挂断
+                val attrCity = if (phoneAttributionRepository.isEnabled) {
+                    phoneAttributionRepository.lookupAttribution(digits)?.let { (_, c, _) -> c }
+                } else null
+                val advancedHit = runCatching {
+                    blocklistRepository.evaluateAdvanced(digits, attrCity)
+                }.getOrNull()
+
+                if (isBlacklisted || advancedHit != null) {
+                    Log.d(TAG, "号码 $number 命中黑名单/规则，自动挂断")
+                    val blocked = allowBlock
+                    if (blocked) endCall()
                     if (settings.enableFloatingWindow) {
                         showFloatingWindow(
                             number,
-                            PhoneInfo(number = number, errorMessage = "已命中黑名单并自动挂断"),
-                            isWhitelist = false
+                            PhoneInfo(
+                                number = number,
+                                errorMessage = if (blocked) "已命中黑名单并自动挂断"
+                                else "命中黑名单（仅记录）"
+                            ),
+                            isWhitelist = false,
+                            alpha = settings.floatingAlpha
                         )
                     }
+                    recordRecentCall(
+                        number = number,
+                        digits = digits,
+                        label = if (blocked) "已命中黑名单并自动挂断" else "命中黑名单（仅记录）",
+                        description = null,
+                        blocked = blocked,
+                        spamType = null
+                    )
                     return@launch
                 }
 
                 // 若只启用黑名单模式，则无需继续在线查询
                 if (settings.enableBlacklistOnly) {
                     if (settings.enableFloatingWindow) {
-                        showFloatingWindow(number, PhoneInfo(number = number), isWhitelist = false)
+                        showFloatingWindow(number, PhoneInfo(number = number), isWhitelist = false, alpha = settings.floatingAlpha)
                     }
                     return@launch
                 }
@@ -146,11 +194,13 @@ class CallHandlerService : Service() {
             if (settings.enableAutoHangup
                 && settings.enableSpamAutoHangup
                 && !settings.enableJobHuntMode
+                && allowBlock
             ) {
                 val isSpam = !info.spamType.isNullOrBlank() || info.platformMarks.isNotEmpty()
                 if (isSpam) {
                     Log.d(TAG, "号码 $number 被标记为骚扰，自动挂断")
                     endCall()
+                    wasBlocked = true
                 }
             }
 
@@ -186,12 +236,58 @@ class CallHandlerService : Service() {
                 } else {
                     info
                 }
-                showFloatingWindow(number, displayInfo, isWhitelist = false)
+                showFloatingWindow(number, displayInfo, isWhitelist = false, alpha = settings.floatingAlpha)
             }
 
             if (shouldWarnUnknown) {
                 Log.d(TAG, "求职模式：号码 $number 为未知号码，请留意不要错过来电")
             }
+
+            // 写入「最近来电」留痕（ScreeningService 与本服务会按号码+3秒去重合并）
+            val label = info.spamType
+                ?: listOfNotNull(info.province, info.city).joinToString("").ifBlank { null }
+            val desc = info.platformMarks.joinToString(" | ") { "${it.platform}: ${it.mark}" }
+                .ifBlank { null }
+            recordRecentCall(
+                number = number,
+                digits = digits,
+                label = label,
+                description = desc,
+                blocked = wasBlocked,
+                spamType = info.spamType
+            )
+        }
+    }
+
+    /**
+     * 写入「最近来电」留痕（去重在 RecentCallRepository 内按 号码+3秒 合并），
+     * 并在实际拦截 / 有骚扰标记时尽力回写系统通话记录。
+     * 抽成独立方法以便各拦截分支在提前 return 前也能正确留痕，
+     * 否则被拦截的来电不会出现在「最近来电」列表中。
+     */
+    private suspend fun recordRecentCall(
+        number: String,
+        digits: String,
+        label: String?,
+        description: String?,
+        blocked: Boolean,
+        spamType: String?
+    ) {
+        try {
+            recentCallRepository.record(
+                number = number,
+                digits = digits,
+                name = label,
+                description = description,
+                blocked = blocked,
+                spamType = spamType
+            )
+            // 仅 Android 9- 且已授权时可回写；Android 10+ 受限跳过（best-effort）
+            if (blocked || !spamType.isNullOrBlank()) {
+                recentCallRepository.markSystemCallLog(digits, label ?: "骚扰")
+            }
+        } catch (_: Exception) {
+            // 留痕失败不影响主流程
         }
     }
 
@@ -276,10 +372,10 @@ class CallHandlerService : Service() {
         }
     }
 
-    private fun showFloatingWindow(number: String, info: PhoneInfo, isWhitelist: Boolean) {
+    private fun showFloatingWindow(number: String, info: PhoneInfo, isWhitelist: Boolean, alpha: Float = 0.9f) {
         serviceScope.launch(Dispatchers.Main) {
             if (Settings.canDrawOverlays(this@CallHandlerService)) {
-                floatingWindow?.show(number, info, isWhitelist)
+                floatingWindow?.show(number, info, isWhitelist, alpha)
             } else {
                 Log.w(TAG, "缺少悬浮窗权限，无法显示悬浮窗")
             }

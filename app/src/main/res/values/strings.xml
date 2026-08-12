@@ -103,6 +103,7 @@
     <string name="permission_denied_hint">部分来电高级功能需要电话相关权限，请在设置中开启。</string>
     <string name="setting_floating_window">来电悬浮窗</string>
     <string name="setting_floating_window_desc">来电时在屏幕顶部弹出号码信息卡片</string>
+    <string name="setting_floating_alpha">悬浮窗透明度：%1$d%%</string>
     <string name="setting_auto_hangup">自动挂断</string>
     <string name="setting_auto_hangup_desc">识别到黑名单或骚扰号码时自动挂断</string>
     <string name="auto_hangup_unsupported_hint">本机系统（如 HarmonyOS）不支持第三方默认拨号应用，主动挂断来电不可用。请开启「系统级来电识别」，黑名单 / 骚扰号码仍会被系统直接拦截。</string>
@@ -129,9 +130,16 @@
     <string name="prefix_hint">按号段/区号前缀匹配，命中整段号码；可应对营销公司频繁换号。</string>
     <string name="type_prefix">号段/区号</string>
     <string name="type_exact">单号</string>
+    <string name="type_regex">正则</string>
+    <string name="type_attr">归属地</string>
     <string name="prefix_match_hint">前缀 %1$s 开头的所有号码均被拦截</string>
     <string name="add_prefix_label">按号段/区号匹配</string>
     <string name="prefix_dialog_hint">勾选后将以该号码为前缀整段匹配（如输入 170 可屏蔽全部 170 开头号码）</string>
+    <string name="hint_attr_region">归属地区名，如 西安</string>
+    <string name="hint_regex">正则表达式，如 ^170\d{8}$</string>
+    <string name="attr_reverse_label">逆向匹配（拦截除该地外的所有来电）</string>
+    <string name="attr_dialog_hint">归属地命中即匹配；以「!」前缀（如 !西安）表示逆向：拦截除西安外的所有来电。</string>
+    <string name="regex_dialog_hint">正则对纯数字号码整体匹配，如 ^170\d{8}$ 匹配 170 开头的 11 位号码。</string>
     <string name="tab_blacklist">黑名单</string>
     <string name="tab_whitelist">白名单</string>
     <string name="add_blacklist">加入黑名单</string>
@@ -169,4 +177,29 @@
     <string name="clear_cache_confirm_msg">将删除全部已缓存的号码标记与企业反查结果。清空后断网或接口失效时将无法再标记，但可重新在线查询生成。</string>
     <string name="btn_clear">清除</string>
     <string name="cache_cleared_toast">已清除本地标记缓存</string>
+
+    <!-- 备份与恢复 -->
+    <string name="backup_title">备份与恢复</string>
+    <string name="backup_desc">将黑白名单规则与关键设置导出为 JSON 文件，换机或重装后可一键恢复。</string>
+    <string name="backup_export">导出备份</string>
+    <string name="backup_export_desc">保存为 refuse-phone-backup.json 到本地存储</string>
+    <string name="backup_import">导入备份</string>
+    <string name="backup_import_desc">从 JSON 文件恢复规则与设置（按号码去重）</string>
+    <string name="backup_exported_toast">已导出备份文件</string>
+    <string name="backup_imported_toast">已导入 %1$d 条规则</string>
+    <string name="backup_failed_toast">备份操作失败，请重试</string>
+
+    <!-- 悬浮窗举报 -->
+    <string name="floating_report">举报</string>
+    <string name="report_title">举报该号码</string>
+    <string name="report_number">号码：%1$s</string>
+    <string name="report_add_block">同时加入黑名单（下次来电直接拦截）</string>
+
+    <!-- 最近来电 -->
+    <string name="recent_calls_title">最近来电</string>
+    <string name="recent_calls_summary">来电识别结果本地留痕（含是否被拦截）</string>
+    <string name="recent_calls_empty">暂无来电记录</string>
+    <string name="recent_calls_blocked">已拦截</string>
+    <string name="recent_calls_clear_confirm_title">清除最近来电？</string>
+    <string name="recent_calls_clear_confirm_msg">将删除全部最近来电记录，此操作不可恢复。</string>
 </resources>

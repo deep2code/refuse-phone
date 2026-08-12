@@ -3,13 +3,19 @@ package com.example.phonequery.data
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import com.example.phonequery.BuildConfig
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object NetworkModule {
 
+    /**
+     * 日志仅在 Debug 构建打印 BODY（含请求/响应明细，可能含号码）。
+     * Release 构建一律 NONE，避免把用户号码写入 logcat 造成隐私泄露。
+     */
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+        else HttpLoggingInterceptor.Level.NONE
     }
 
     internal val okHttpClient = OkHttpClient.Builder()

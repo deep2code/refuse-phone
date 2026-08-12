@@ -9,9 +9,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * 社区维护骚扰/诈骗号码库（md5 离线匹配）。
  *
- * - 首启动时从 assets/seed_spammers.csv 灌库（幂等：表为空才导入）。
+ * - 首启动时从 assets 下的种子文件灌库（幂等：表为空才导入）。
+ *   - seed_spammers.csv：社区维护的骚扰号码（value 多为 32 位 md5，含少量明文）。
+ *   - seed_community.csv：社区众包诈骗/骚扰黑名单（明文 E.164 号码，本地自动算 md5）。
+ *     当前内置来源：nathanu98/ScammerPhoneNumbers（美国诈骗号码）、
+ *     Shalom-Karr/AI-Number-Blocklist（AI 机器人骚扰号码）。
  * - 来电/查询时把号码规范化为 E.164 再取 md5，与本地哈希表比对，命中即标记为已知骚扰。
- * - 数据源示例：auino/global-telephone-spammers-list（开源众包、号码以 md5 存储保隐私）。
  *
  * CSV 格式（description,value）：
  * - value 为 32 位十六进制 → 视为已算好的 md5，直接入库；
@@ -32,13 +35,15 @@ class SpamHashRepository(context: Context) {
             seeded.set(true)
             return
         }
-        runCatching {
-            appContext.assets.open("seed_spammers.csv").use { stream ->
-                val text = stream.bufferedReader().readText()
-                val rows = parseCsv(text)
-                if (rows.isNotEmpty()) dao.insertAll(rows)
+        val all = mutableListOf<SpamHashEntity>()
+        for (asset in listOf("seed_spammers.csv", "seed_community.csv")) {
+            runCatching {
+                appContext.assets.open(asset).use { stream ->
+                    all += parseCsv(stream.bufferedReader().readText())
+                }
             }
         }
+        if (all.isNotEmpty()) dao.insertAll(all)
         seeded.set(true)
     }
 

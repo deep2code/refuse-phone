@@ -8,8 +8,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [BlocklistEntity::class, MarkCacheEntity::class, SpamHashEntity::class, CodeNumberEntity::class],
-    version = 5,
+    entities = [BlocklistEntity::class, MarkCacheEntity::class, SpamHashEntity::class, CodeNumberEntity::class, RecentCallEntity::class],
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -17,6 +17,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun markCacheDao(): MarkCacheDao
     abstract fun spamHashDao(): SpamHashDao
     abstract fun codeNumberDao(): CodeNumberDao
+    abstract fun recentCallDao(): RecentCallDao
 
     companion object {
         @Volatile
@@ -81,6 +82,24 @@ abstract class AppDatabase : RoomDatabase() {
             )
         }
 
+        /** 从版本 5 升级：新增 recent_call 最近来电表（来电识别结果本地留痕） */
+        private val MIGRATION_5_6 = Migration(5, 6) {
+            it.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `recent_call` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `number` TEXT NOT NULL,
+                    `digits` TEXT NOT NULL DEFAULT '',
+                    `name` TEXT,
+                    `description` TEXT,
+                    `blocked` INTEGER NOT NULL DEFAULT 0,
+                    `spamType` TEXT,
+                    `timestamp` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -88,7 +107,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "phone_query.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }

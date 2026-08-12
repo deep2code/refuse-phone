@@ -142,19 +142,19 @@ fun BlocklistScreen(viewModel: SettingsViewModel, onBack: () -> Unit = { }) {
         AddBlocklistDialog(
             isBlacklist = selectedTab == 0,
             onDismiss = { showAddDialog = false },
-            onConfirm = { number, note, isPrefix ->
-                if (isPrefix) {
-                    val label = if (note.isNotBlank()) note else "号段/区号 $number"
-                    if (selectedTab == 0) {
-                        viewModel.addBlockPrefix(number, label, isBlock = true)
-                    } else {
-                        viewModel.addBlockPrefix(number, label, isBlock = false)
+            onConfirm = { number, note, type, reverse ->
+                when (type) {
+                    BlocklistEntity.TYPE_REGEX ->
+                        viewModel.addRegexRule(number, note, isBlock = selectedTab == 0)
+                    BlocklistEntity.TYPE_ATTR ->
+                        viewModel.addAttrRule(number, isBlock = selectedTab == 0, reverse = reverse)
+                    BlocklistEntity.TYPE_PREFIX -> {
+                        val label = if (note.isNotBlank()) note else "号段/区号 $number"
+                        viewModel.addBlockPrefix(number, label, isBlock = selectedTab == 0)
                     }
-                } else {
-                    if (selectedTab == 0) {
-                        viewModel.addBlockNumber(number, note)
-                    } else {
-                        viewModel.addWhitelistNumber(number, note)
+                    else -> {
+                        if (selectedTab == 0) viewModel.addBlockNumber(number, note)
+                        else viewModel.addWhitelistNumber(number, note)
                     }
                 }
                 showAddDialog = false
@@ -242,7 +242,12 @@ private fun BlocklistItem(
     entity: BlocklistEntity,
     onDelete: () -> Unit
 ) {
-    val isPrefix = entity.type == BlocklistEntity.TYPE_PREFIX
+    val typeLabel = when (entity.type) {
+        BlocklistEntity.TYPE_PREFIX -> stringResource(R.string.type_prefix)
+        BlocklistEntity.TYPE_REGEX -> stringResource(R.string.type_regex)
+        BlocklistEntity.TYPE_ATTR -> stringResource(R.string.type_attr)
+        else -> stringResource(R.string.type_exact)
+    }
     AppCard {
         Row(
             modifier = Modifier
@@ -259,12 +264,7 @@ private fun BlocklistItem(
                     Spacer(modifier = Modifier.width(8.dp))
                     AssistChip(
                         onClick = { },
-                        label = {
-                            Text(
-                                if (isPrefix) stringResource(R.string.type_prefix)
-                                else stringResource(R.string.type_exact)
-                            )
-                        }
+                        label = { Text(typeLabel) }
                     )
                 }
                 if (entity.label.isNotBlank()) {
@@ -280,7 +280,7 @@ private fun BlocklistItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                if (isPrefix) {
+                if (entity.type == BlocklistEntity.TYPE_PREFIX) {
                     Text(
                         text = stringResource(R.string.prefix_match_hint, entity.number),
                         style = MaterialTheme.typography.bodySmall,
@@ -298,15 +298,18 @@ private fun BlocklistItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddBlocklistDialog(
     isBlacklist: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, Boolean) -> Unit
+    onConfirm: (String, String, String, Boolean) -> Unit
 ) {
     var number by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf(BlocklistEntity.TYPE_EXACT) }
     var isPrefix by remember { mutableStateOf(false) }
+    var reverse by remember { mutableStateOf(false) }
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
@@ -318,34 +321,80 @@ private fun AddBlocklistDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 规则类型选择
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val types = listOf(
+                        BlocklistEntity.TYPE_EXACT to stringResource(R.string.type_exact),
+                        BlocklistEntity.TYPE_PREFIX to stringResource(R.string.type_prefix),
+                        BlocklistEntity.TYPE_REGEX to stringResource(R.string.type_regex),
+                        BlocklistEntity.TYPE_ATTR to stringResource(R.string.type_attr)
+                    )
+                    types.forEachIndexed { index, (t, label) ->
+                        SegmentedButton(
+                            selected = type == t,
+                            onClick = { type = t },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = types.size)
+                        ) {
+                            Text(label)
+                        }
+                    }
+                }
+
+                val isAttr = type == BlocklistEntity.TYPE_ATTR
+                val isRegex = type == BlocklistEntity.TYPE_REGEX
+                val inputLabel = when {
+                    isAttr -> stringResource(R.string.hint_attr_region)
+                    isRegex -> stringResource(R.string.hint_regex)
+                    else -> stringResource(R.string.hint_input_phone)
+                }
                 OutlinedTextField(
                     value = number,
                     onValueChange = { number = it },
-                    label = { Text(stringResource(R.string.hint_input_phone)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    label = { Text(inputLabel) },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = if (isAttr || isRegex) KeyboardType.Text else KeyboardType.Phone
+                    ),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text(stringResource(R.string.hint_note)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    androidx.compose.material3.Checkbox(
-                        checked = isPrefix,
-                        onCheckedChange = { isPrefix = it }
+
+                if (!isAttr) {
+                    OutlinedTextField(
+                        value = note,
+                        onValueChange = { note = it },
+                        label = { Text(stringResource(R.string.hint_note)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    Text(stringResource(R.string.add_prefix_label))
                 }
-                if (isPrefix) {
+
+                if (type == BlocklistEntity.TYPE_PREFIX) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.Checkbox(checked = isPrefix, onCheckedChange = { isPrefix = it })
+                        Text(stringResource(R.string.add_prefix_label))
+                    }
                     Text(
                         text = stringResource(R.string.prefix_dialog_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (isAttr) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.Checkbox(checked = reverse, onCheckedChange = { reverse = it })
+                        Text(stringResource(R.string.attr_reverse_label))
+                    }
+                    Text(
+                        text = stringResource(R.string.attr_dialog_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (isRegex) {
+                    Text(
+                        text = stringResource(R.string.regex_dialog_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -354,7 +403,12 @@ private fun AddBlocklistDialog(
         },
         confirmButton = {
             androidx.compose.material3.TextButton(
-                onClick = { onConfirm(number, note, isPrefix) },
+                onClick = {
+                    val finalType = if (type == BlocklistEntity.TYPE_EXACT && isPrefix) {
+                        BlocklistEntity.TYPE_PREFIX
+                    } else type
+                    onConfirm(number, note, finalType, reverse)
+                },
                 enabled = number.isNotBlank()
             ) {
                 Text(stringResource(R.string.btn_confirm))

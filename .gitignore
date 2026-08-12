@@ -22,3 +22,7 @@ release-artifacts/
 
 # 项目内部工具状态（agent 记忆等，非源码）
 .workbuddy/
+
+# 可复现的中间数据：由 scripts/*.py 从上游仓库重新生成，不入库
+scripts/phone.dat
+scripts/phone_pangongzi.dat

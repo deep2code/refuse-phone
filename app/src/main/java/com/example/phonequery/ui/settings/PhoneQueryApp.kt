@@ -88,6 +88,9 @@ fun PhoneQueryApp(
                     onNavigateToBlocklist = {
                         navController.navigate("blocklist")
                     },
+                    onNavigateToRecent = {
+                        navController.navigate("recent")
+                    },
                     onNavigateToSetupGuide = {
                         navController.navigate("guide")
                     },
@@ -104,6 +107,12 @@ fun PhoneQueryApp(
             }
             composable("blocklist") {
                 BlocklistScreen(
+                    viewModel = settingsViewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("recent") {
+                RecentCallsScreen(
                     viewModel = settingsViewModel,
                     onBack = { navController.popBackStack() }
                 )

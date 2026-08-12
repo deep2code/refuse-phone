@@ -32,13 +32,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.phonequery.R
+import androidx.compose.material3.Slider
+import androidx.compose.runtime.LaunchedEffect
 import com.example.phonequery.call.CallScreeningRole
 import com.example.phonequery.ui.theme.AppCard
 import com.example.phonequery.ui.theme.NavRow
@@ -53,12 +57,15 @@ import com.google.accompanist.permissions.rememberPermissionState
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateToBlocklist: () -> Unit,
+    onNavigateToRecent: () -> Unit,
     onNavigateToSetupGuide: () -> Unit,
     onNavigateHome: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val cacheCount by viewModel.cacheCount.collectAsState()
     val context = LocalContext.current
+    // 用于 UI 回调中启动协程（导出/导入备份），替代 viewModelScope 以避免跨组件作用域解析问题
+    val scope = rememberCoroutineScope()
 
     // 申请「来电筛选」系统角色（CallScreeningService 的前置授权）
     val callScreeningLauncher = rememberLauncherForActivityResult(
@@ -83,6 +90,50 @@ fun SettingsScreen(
 
     // 读取通讯录权限（「仅放行通讯录」拦截的前置条件）
     val contactsPermission = rememberPermissionState(Manifest.permission.READ_CONTACTS)
+
+    // 备份导出：通过系统文件选择器保存 JSON
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                runCatching {
+                    val json = viewModel.exportBackup()
+                    context.contentResolver.openOutputStream(uri)?.use { os ->
+                        os.write(json.toByteArray(Charsets.UTF_8))
+                    } ?: throw IllegalStateException("openOutputStream null")
+                }.onSuccess {
+                    Toast.makeText(context, R.string.backup_exported_toast, Toast.LENGTH_SHORT).show()
+                }.onFailure {
+                    Toast.makeText(context, R.string.backup_failed_toast, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // 备份导入：通过系统文件选择器读取 JSON
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                runCatching {
+                    val json = context.contentResolver.openInputStream(uri)
+                        ?.bufferedReader()?.readText()
+                    if (json.isNullOrBlank()) throw IllegalStateException("empty backup")
+                    viewModel.importBackup(json)
+                }.onSuccess { n ->
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.backup_imported_toast, n),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }.onFailure {
+                    Toast.makeText(context, R.string.backup_failed_toast, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -139,6 +190,27 @@ fun SettingsScreen(
                             }
                         }
                     )
+
+                    // 悬浮窗透明度调节（仅开启悬浮窗时显示）
+                    if (settings.enableFloatingWindow) {
+                        var alpha by remember { mutableStateOf(settings.floatingAlpha) }
+                        LaunchedEffect(settings.floatingAlpha) { alpha = settings.floatingAlpha }
+                        Text(
+                            text = stringResource(
+                                R.string.setting_floating_alpha,
+                                (alpha * 100).toInt()
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = alpha,
+                            onValueChange = { alpha = it },
+                            onValueChangeFinished = { viewModel.setFloatingAlpha(alpha) },
+                            valueRange = 0.3f..1.0f,
+                            steps = 14
+                        )
+                    }
 
                     SettingRow(
                         title = stringResource(R.string.setting_auto_hangup),
@@ -278,6 +350,13 @@ fun SettingsScreen(
                 onClick = onNavigateToBlocklist
             )
 
+            // 最近来电入口
+            NavRow(
+                title = stringResource(R.string.recent_calls_title),
+                subtitle = stringResource(R.string.recent_calls_summary),
+                onClick = onNavigateToRecent
+            )
+
             // 首次使用授权引导入口
             NavRow(
                 title = stringResource(R.string.settings_setup_guide),
@@ -291,6 +370,30 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.clear_cache_desc, cacheCount),
                 onClick = { showClearCacheDialog = true }
             )
+
+            // 备份与恢复（黑白名单规则 + 关键设置，JSON 文件）
+            AppCard {
+                Text(
+                    text = stringResource(R.string.backup_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = stringResource(R.string.backup_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                NavRow(
+                    title = stringResource(R.string.backup_export),
+                    subtitle = stringResource(R.string.backup_export_desc),
+                    onClick = { exportLauncher.launch("refuse-phone-backup.json") }
+                )
+                NavRow(
+                    title = stringResource(R.string.backup_import),
+                    subtitle = stringResource(R.string.backup_import_desc),
+                    onClick = { importLauncher.launch(arrayOf("application/json")) }
+                )
+            }
 
             // 前台服务说明
             Text(

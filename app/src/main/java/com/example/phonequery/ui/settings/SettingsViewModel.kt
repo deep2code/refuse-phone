@@ -13,9 +13,11 @@ import com.example.phonequery.data.AppSettings
 import com.example.phonequery.data.BlocklistRepository
 import com.example.phonequery.data.CodeNumberRepository
 import com.example.phonequery.data.MarkCacheRepository
+import com.example.phonequery.data.RecentCallRepository
 import com.example.phonequery.data.SettingsDataStore
 import com.example.phonequery.data.SpamHashRepository
 import com.example.phonequery.db.BlocklistEntity
+import com.example.phonequery.db.RecentCallEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +31,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val markCacheRepository = MarkCacheRepository(application)
     private val spamHashRepository = SpamHashRepository(application)
     private val codeNumberRepository = CodeNumberRepository(application)
+    private val recentCallRepository = RecentCallRepository(application)
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState
@@ -55,6 +58,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             settingsDataStore.updateFloatingWindow(enabled)
             if (enabled) startCallService()
+        }
+    }
+
+    fun setFloatingAlpha(alpha: Float) {
+        viewModelScope.launch {
+            settingsDataStore.updateFloatingAlpha(alpha)
         }
     }
 
@@ -151,6 +160,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun addRegexRule(pattern: String, label: String, isBlock: Boolean) {
+        viewModelScope.launch {
+            blocklistRepository.addRegex(pattern, label, isBlock)
+        }
+    }
+
+    fun addAttrRule(region: String, isBlock: Boolean, reverse: Boolean) {
+        viewModelScope.launch {
+            blocklistRepository.addAttr(region, isBlock, reverse)
+        }
+    }
+
     fun startCallService() {
         val context = getApplication<Application>()
         val intent = Intent(context, CallHandlerService::class.java)
@@ -207,6 +228,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             markCacheRepository.clearAll()
             _cacheCount.value = 0
         }
+    }
+
+    /** 最近来电列表（Flow） */
+    val recentCalls: Flow<List<RecentCallEntity>> = recentCallRepository.all
+
+    fun clearRecentCalls() {
+        viewModelScope.launch { recentCallRepository.clear() }
+    }
+
+    /** 导出全部规则+关键设置为 JSON 字符串（供备份文件写入）。 */
+    suspend fun exportBackup(): String {
+        return blocklistRepository.exportAll()
+    }
+
+    /** 从 JSON 字符串导入备份，返回导入的规则条数。 */
+    suspend fun importBackup(json: String): Int {
+        return blocklistRepository.importAll(json)
     }
 }
 

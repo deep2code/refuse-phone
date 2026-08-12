@@ -1,6 +1,8 @@
 package com.example.phonequery.call
 
 import android.content.Context
+import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.PixelFormat
 import android.os.Build
 import android.provider.Settings
@@ -14,6 +16,7 @@ import android.widget.Button
 import android.widget.TextView
 import com.example.phonequery.R
 import com.example.phonequery.model.PhoneInfo
+import com.example.phonequery.ui.ReportActivity
 
 /**
  * 来电悬浮窗管理器。
@@ -23,14 +26,21 @@ class FloatingWindowManager(private val context: Context) {
 
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var floatingView: View? = null
+    private var currentNumber: String = ""
+
+    // 悬浮窗位置记忆（仅记垂直位置 y；卡片为 MATCH_PARENT 宽度，水平拖拽无意义）
+    private val posPrefs: SharedPreferences =
+        context.getSharedPreferences("floating_window_pos", Context.MODE_PRIVATE)
 
     @Suppress("DEPRECATION")
-    fun show(number: String, info: PhoneInfo, isWhitelist: Boolean = false) {
+    fun show(number: String, info: PhoneInfo, isWhitelist: Boolean = false, alpha: Float = 0.9f) {
         if (!hasPermission()) {
             return
         }
 
         hide()
+
+        currentNumber = number
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -48,8 +58,15 @@ class FloatingWindowManager(private val context: Context) {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            // 避开刘海/状态栏：按屏幕密度 + 刘海安全区定位，不再写死像素
-            y = computeTopInset() + (8 * context.resources.displayMetrics.density).toInt()
+            // 透明度取自设置（0.3~1.0）
+            this.alpha = alpha.coerceIn(0.3f, 1.0f)
+            // 优先使用上次拖拽保存的位置，否则避开刘海/状态栏
+            val savedY = posPrefs.getInt(KEY_POS_Y, Int.MIN_VALUE)
+            y = if (savedY != Int.MIN_VALUE) {
+                savedY
+            } else {
+                computeTopInset() + (8 * context.resources.displayMetrics.density).toInt()
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode =
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
@@ -94,6 +111,15 @@ class FloatingWindowManager(private val context: Context) {
         view.findViewById<Button>(R.id.btn_close).setOnClickListener {
             hide()
         }
+
+        // 举报：拉起来电举报对话框（透明 Activity），可选加入黑名单
+        view.findViewById<Button>(R.id.btn_report).setOnClickListener {
+            val intent = Intent(context, ReportActivity::class.java).apply {
+                putExtra(ReportActivity.EXTRA_NUMBER, number)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            runCatching { context.startActivity(intent) }
+        }
     }
 
     private fun buildSpamText(info: PhoneInfo): String {
@@ -127,6 +153,11 @@ class FloatingWindowManager(private val context: Context) {
                     }
                     true
                 }
+                MotionEvent.ACTION_UP -> {
+                    // 记住拖拽后的垂直位置，下次来电在原位弹出
+                    posPrefs.edit().putInt(KEY_POS_Y, params.y).apply()
+                    true
+                }
                 else -> false
             }
         }
@@ -145,6 +176,10 @@ class FloatingWindowManager(private val context: Context) {
 
     private fun hasPermission(): Boolean {
         return Settings.canDrawOverlays(context)
+    }
+
+    private companion object {
+        const val KEY_POS_Y = "pos_y"
     }
 
     /**

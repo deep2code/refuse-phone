@@ -11,6 +11,10 @@ import com.example.phonequery.data.MarkCacheRepository
 import com.example.phonequery.data.PhoneAttributionRepository
 import com.example.phonequery.data.SettingsDataStore
 import com.example.phonequery.data.SpamHashRepository
+import com.example.phonequery.data.SpamPrefixDatabase
+import com.example.phonequery.data.AppSettings
+import com.example.phonequery.data.BlocklistRepository
+import com.example.phonequery.data.RecentCallRepository
 import com.example.phonequery.db.AppDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -65,6 +69,14 @@ class ScreeningService : CallScreeningService() {
             AppDatabase.getInstance(ctx).blocklistDao().isBlacklisted(digits)
         }.getOrDefault(false)
 
+        // 1.5 白名单 / 通讯录优先：被云标记或哈希命中的通讯录/白名单号码，
+        //      在系统级拦截中会被误拦——这里先放行，避免误伤重要来电（最高优先级）。
+        val isWhitelisted = runCatching {
+            AppDatabase.getInstance(ctx).blocklistDao().isWhitelisted(digits)
+        }.getOrDefault(false)
+        val inContacts = ContactChecker.hasPermission(ctx) &&
+            runCatching { ContactChecker.isInContacts(ctx, digits) }.getOrDefault(false)
+
         // 2. 离线骚扰识别（社区哈希库 + 本地标记缓存）
         var spamDesc: String? = null
         runCatching { SpamHashRepository(ctx).match(cleaned) }.getOrNull()?.let {
@@ -75,10 +87,20 @@ class ScreeningService : CallScreeningService() {
                 if (!cached.spamType.isNullOrBlank()) spamDesc = cached.spamType
             }
         }
+        // 2.5 本地号段库提示（虚拟运营商/高风险营销号段，仅提示不拦截，决策权留给用户）
+        if (spamDesc == null) {
+            runCatching { SpamPrefixDatabase.match(cleaned) }.getOrNull()?.let {
+                spamDesc = it.label
+            }
+        }
 
         // 3. 归属地 + 工信部码号
+        var attrCity: String? = null
+        var attrProvince: String? = null
         val attrParts = mutableListOf<String>()
         PhoneAttributionRepository(ctx).takeIf { it.isEnabled }?.lookupAttribution(digits)?.let { (p, c, i) ->
+            attrProvince = p.takeIf { it.isNotBlank() }
+            attrCity = c.takeIf { it.isNotBlank() } ?: attrProvince
             val loc = listOfNotNull(p.takeIf { it.isNotBlank() }, c.takeIf { it.isNotBlank() })
                 .joinToString("")
             if (loc.isNotBlank()) attrParts += loc
@@ -95,8 +117,14 @@ class ScreeningService : CallScreeningService() {
             ContactChecker.hasPermission(ctx) &&
             !ContactChecker.isInContacts(ctx, digits)
 
+        // 3.6 高级规则（正则 / 归属地，含逆向 !城市）：命中黑名单规则即匹配
+        val advancedHit = runCatching {
+            BlocklistRepository(ctx).evaluateAdvanced(digits, attrCity ?: attrProvince)
+        }.getOrNull()
+
         val name = when {
             isBlacklisted -> "黑名单号码"
+            advancedHit != null -> "规则命中：${advancedHit.label}"
             blockNonContacts -> "非通讯录号码"
             spamDesc != null -> spamDesc
             attrParts.isNotEmpty() -> attrParts.joinToString(" · ")
@@ -104,17 +132,24 @@ class ScreeningService : CallScreeningService() {
         }
         val description = when {
             isBlacklisted -> "已加入黑名单，来电将被拦截"
+            advancedHit != null -> "命中拦截规则，来电将被拦截"
             blockNonContacts -> "不在通讯录，已自动拦截"
             spamDesc != null -> "疑似骚扰/诈骗：$spamDesc"
             attrParts.isNotEmpty() -> attrParts.joinToString(" · ")
             else -> null
         }
 
-        // 4. 拦截决策：本地黑名单 或 非通讯录 或（骚扰标记 且 用户开启自动挂断 + 骚扰自动挂断）
-        val shouldBlock = isBlacklisted || blockNonContacts ||
-            (spamDesc != null && settings.enableAutoHangup && settings.enableSpamAutoHangup)
+        // 4. 拦截决策：本地黑名单 或 非通讯录 或（骚扰标记 且 用户开启自动挂断 + 骚扰自动挂断）或 高级规则命中
+        //    求职保护模式下不依据骚扰/号段标记自动挂断，确保面试/重要来电不被误拦
+        val matched = isBlacklisted || blockNonContacts || advancedHit != null ||
+            (spamDesc != null && settings.enableAutoHangup && settings.enableSpamAutoHangup && !settings.enableJobHuntMode)
+        // 白名单 / 通讯录命中 → 一律放行，绝不误拦
+        val shouldBlock = matched && !isWhitelisted && !inContacts
 
-        if (shouldBlock) {
+        // 拦截动作：block=拒接；log=放行仅记录（不实际拦截）
+        val willReject = shouldBlock && settings.interceptAction == AppSettings.INTERCEPT_BLOCK
+
+        if (willReject) {
             builder.setDisallowCall(true)
                 .setRejectCall(true)
                 // 仍写入通话记录，便于用户事后核对「到底拦了谁」；但不弹未接来电通知
@@ -128,6 +163,20 @@ class ScreeningService : CallScreeningService() {
             TAG,
             "screen call=$cleaned block=$shouldBlock name=${name ?: "-"} desc=${description ?: "-"}"
         )
+
+        // 6. 写入「最近来电」留痕（与本服务会按号码+3秒去重合并）
+        try {
+            RecentCallRepository(ctx).record(
+                number = cleaned,
+                digits = digits,
+                name = name,
+                description = description,
+                blocked = shouldBlock,
+                spamType = spamDesc
+            )
+        } catch (_: Exception) {
+            // 留痕失败不影响拦截决策
+        }
 
         return builder.build()
     }
