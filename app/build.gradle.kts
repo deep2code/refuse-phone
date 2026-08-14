@@ -115,6 +115,14 @@ android {
     lint {
         checkReleaseBuilds = false
     }
+
+    // 本地单元测试（testReleaseUnitTest）跑在 JVM 上，android.jar 为桩实现；
+    // 开启 returnDefaultValues 让未实现的 Android API 返回默认值而非抛异常。
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {

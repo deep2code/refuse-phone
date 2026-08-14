@@ -121,20 +121,12 @@ class BlocklistRepository(context: Context) {
         if (num.isBlank()) return null
         // 正则规则
         dao.getAllByType(BlocklistEntity.TYPE_REGEX).forEach { rule ->
-            if (rule.isBlock) {
-                runCatching { Regex(rule.number).matches(num) }.getOrDefault(false)
-                    .takeIf { it }?.let { return rule }
-            }
+            if (rule.isBlock && BlocklistEvaluator.matchesRegexRule(rule, num)) return rule
         }
         // 归属地规则（含逆向）
         if (!city.isNullOrBlank()) {
             dao.getAllByType(BlocklistEntity.TYPE_ATTR).forEach { rule ->
-                if (rule.isBlock) {
-                    val region = rule.number.removePrefix("!")
-                    val reverse = rule.number.startsWith("!")
-                    val hit = if (reverse) !city.contains(region) else city.contains(region)
-                    if (hit) return rule
-                }
+                if (rule.isBlock && BlocklistEvaluator.matchesAttrRule(rule, city)) return rule
             }
         }
         return null

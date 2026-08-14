@@ -48,21 +48,31 @@ object SpamPrefixDatabase {
         val digits = number.replace(Regex("\\D"), "")
         if (digits.length < 3) return null
 
-        for (prefix in VIRTUAL_OPERATOR_PREFIXES) {
-            if (digits.startsWith(prefix)) {
-                return SpamHint(
-                    Level.VIRTUAL_OPERATOR,
-                    "虚拟运营商号段（$prefix 开头），营销/诈骗电话高发，请留意"
-                )
-            }
+        // 中国大陆号码常带 +86 国家码前缀，去掉后再做号段匹配，
+        // 否则「86」会挡在真实号段之前，导致虚商/高风险号段提示对所有国内号码静默失效。
+        val candidates = if (digits.startsWith("86") && digits.length >= 11) {
+            listOf(digits, digits.removePrefix("86"))
+        } else {
+            listOf(digits)
         }
 
-        for (prefix in HIGH_RISK_PREFIXES) {
-            if (digits.startsWith(prefix)) {
-                return SpamHint(
-                    Level.HIGH_RISK,
-                    "$prefix 号段（常被营销/诈骗冒用）"
-                )
+        for (cand in candidates) {
+            for (prefix in VIRTUAL_OPERATOR_PREFIXES) {
+                if (cand.startsWith(prefix)) {
+                    return SpamHint(
+                        Level.VIRTUAL_OPERATOR,
+                        "虚拟运营商号段（$prefix 开头），营销/诈骗电话高发，请留意"
+                    )
+                }
+            }
+
+            for (prefix in HIGH_RISK_PREFIXES) {
+                if (cand.startsWith(prefix)) {
+                    return SpamHint(
+                        Level.HIGH_RISK,
+                        "$prefix 号段（常被营销/诈骗冒用）"
+                    )
+                }
             }
         }
 

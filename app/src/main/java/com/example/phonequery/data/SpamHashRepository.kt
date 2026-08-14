@@ -3,7 +3,6 @@ package com.example.phonequery.data
 import android.content.Context
 import com.example.phonequery.db.AppDatabase
 import com.example.phonequery.db.SpamHashEntity
-import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -50,9 +49,9 @@ class SpamHashRepository(context: Context) {
     /** 按明文号码匹配已知骚扰库；命中返回描述，否则 null。 */
     suspend fun match(rawNumber: String): SpamHashEntity? {
         ensureSeeded()
-        val e164 = normalizeToE164(rawNumber)
+        val e164 = E164Normalizer.normalize(rawNumber)
         if (e164.isBlank()) return null
-        val hash = md5Hex(e164)
+        val hash = E164Normalizer.md5Hex(e164)
         return runCatching { dao.getByHash(hash) }.getOrNull()
     }
 
@@ -76,7 +75,7 @@ class SpamHashRepository(context: Context) {
             val (hash, source) = if (value.length == 32 && value.all { it in "0123456789abcdefABCDEF" }) {
                 value.lowercase() to "global-telephone-spammers-list"
             } else {
-                md5Hex(normalizeToE164(value)) to "seed-plaintext"
+                E164Normalizer.md5Hex(E164Normalizer.normalize(value)) to "seed-plaintext"
             }
             SpamHashEntity(id = hash, description = desc, source = source)
         }
@@ -87,18 +86,10 @@ class SpamHashRepository(context: Context) {
      * 例：13800138000 → +8613800138000；01012345678 → +861012345678。
      */
     private fun normalizeToE164(raw: String): String {
-        val cleaned = raw.replace(Regex("[\\s()-]"), "").replace("＋", "+")
-        return when {
-            cleaned.startsWith("+") -> cleaned
-            cleaned.startsWith("86") && cleaned.length == 13 -> "+$cleaned"
-            cleaned.startsWith("0") && cleaned.length >= 10 -> "+86" + cleaned.removePrefix("0")
-            cleaned.all { it.isDigit() } && cleaned.length == 11 && cleaned.startsWith("1") -> "+86$cleaned"
-            else -> cleaned
-        }
+        return E164Normalizer.normalize(raw)
     }
 
     private fun md5Hex(input: String): String {
-        val bytes = MessageDigest.getInstance("MD5").digest(input.toByteArray(Charsets.UTF_8))
-        return bytes.joinToString("") { "%02x".format(it) }
+        return E164Normalizer.md5Hex(input)
     }
 }

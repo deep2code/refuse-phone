@@ -9,6 +9,7 @@ import com.example.phonequery.model.EnterpriseInfo
 import com.example.phonequery.model.LandlineLocation
 import com.example.phonequery.network.TminiService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 /**
@@ -20,6 +21,7 @@ import kotlinx.coroutines.withContext
  */
 class EnterpriseRepository(context: Context) {
 
+    private val appContext: Context = context.applicationContext
     private val areaCodeHelper = AreaCodeHelper(context)
     private val tminiService: TminiService = NetworkModule.tminiRetrofit.create(TminiService::class.java)
     private val markCacheRepository: MarkCacheRepository = MarkCacheRepository(context)
@@ -50,6 +52,18 @@ class EnterpriseRepository(context: Context) {
                     landline,
                     cachedNames.map { EnterpriseInfo(name = it, source = "本地缓存") }
                 )
+            }
+
+            // 隐私保护：受「在线查询开关」约束。用户关闭在线查询时，不把固话号码发给
+            // 第三方网关（tmini/电话邦，以及可选的企业源），仅返回本地缓存结果。
+            // 否则「关了在线查询就不发号」的承诺在固话反查这里被悄悄绕过。
+            val onlineEnabled = try {
+                SettingsDataStore(appContext).settingsFlow.first().enableOnlineLookup
+            } catch (_: Exception) {
+                false
+            }
+            if (!onlineEnabled) {
+                return@withContext Pair(landline, emptyList())
             }
 
             val tminiEnterprises = queryTminiEnterprise(digits)
