@@ -8,12 +8,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * 社区维护骚扰/诈骗号码库（md5 离线匹配）。
  *
- * - 首启动时从 assets 下的种子文件灌库（幂等：表为空才导入）。
- *   - seed_spammers.csv：社区维护的骚扰号码（value 多为 32 位 md5，含少量明文）。
- *   - seed_community.csv：社区众包诈骗/骚扰黑名单（明文 E.164 号码，本地自动算 md5）。
- *     当前内置来源：nathanu98/ScammerPhoneNumbers（美国诈骗号码）、
- *     Shalom-Karr/AI-Number-Blocklist（AI 机器人骚扰号码）。
- * - 来电/查询时把号码规范化为 E.164 再取 md5，与本地哈希表比对，命中即标记为已知骚扰。
+ * - 离线哈希匹配机制保留：来电/查询时把号码规范化为 E.164 再取 md5，与本地哈希表比对，命中即标记为已知骚扰。
+ * - 种子文件：原 seed_spammers.csv / seed_community.csv 均为国外（+1 美国）号码，
+ *   与中国来电匹配不上，已于 2026-08-15 删除；当前表为空（离线骚扰识别零覆盖）。
+ *   如需恢复，请往 assets 放入中国号码种子文件并在 [ensureSeeded] 中登记。
  *
  * CSV 格式（description,value）：
  * - value 为 32 位十六进制 → 视为已算好的 md5，直接入库；
@@ -34,8 +32,11 @@ class SpamHashRepository(context: Context) {
             seeded.set(true)
             return
         }
+        // 国外种子（seed_spammers.csv / seed_community.csv，均为 +1 美国号）已于 2026-08-15 删除。
+        // 当前无中国源种子文件；如需离线骚扰识别，把中国号码种子文件放入 assets 并在此登记。
+        val assets = emptyList<String>()
         val all = mutableListOf<SpamHashEntity>()
-        for (asset in listOf("seed_spammers.csv", "seed_community.csv")) {
+        for (asset in assets) {
             runCatching {
                 appContext.assets.open(asset).use { stream ->
                     all += parseCsv(stream.bufferedReader().readText())
@@ -46,9 +47,19 @@ class SpamHashRepository(context: Context) {
         seeded.set(true)
     }
 
-    /** 按明文号码匹配已知骚扰库；命中返回描述，否则 null。 */
-    suspend fun match(rawNumber: String): SpamHashEntity? {
-        ensureSeeded()
+    /**
+     * 按明文号码匹配已知骚扰库；命中返回描述，否则 null。
+     *
+     * @param allowSeed 是否允许匹配前同步灌库。来电热路径（系统级 CallScreeningService）
+     *   应传 false：若尚未预填充完成则直接跳过，避免在主线程/系统来电回调线程同步插入
+     *   7.3 万条哈希导致卡死/ANR；后台预填充完成后下次来电即可命中。手动查号路径用默认 true。
+     */
+    suspend fun match(rawNumber: String, allowSeed: Boolean = true): SpamHashEntity? {
+        if (allowSeed) {
+            ensureSeeded()
+        } else if (dao.count() == 0) {
+            return null
+        }
         val e164 = E164Normalizer.normalize(rawNumber)
         if (e164.isBlank()) return null
         val hash = E164Normalizer.md5Hex(e164)

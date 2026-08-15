@@ -16,8 +16,12 @@ import com.example.phonequery.data.AppSettings
 import com.example.phonequery.data.BlocklistRepository
 import com.example.phonequery.data.RecentCallRepository
 import com.example.phonequery.db.AppDatabase
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -36,6 +40,23 @@ import kotlinx.coroutines.runBlocking
  * 未持有角色时本服务不会被触发；持有角色但用户关闭「系统级来电识别」开关时本服务原样放行。
  */
 class ScreeningService : CallScreeningService() {
+
+    private val seedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun onCreate() {
+        super.onCreate()
+        // 后台预填充本地骚扰哈希库 / 工信部码号库，避免首次来电时在 onScreenCall 的
+        // 系统回调线程上同步插入 7.3 万条数据导致卡死/ANR。来电热路径 match/lookup 传 allowSeed=false。
+        seedScope.launch {
+            runCatching { SpamHashRepository(applicationContext).ensureSeeded() }
+            runCatching { CodeNumberRepository(applicationContext).ensureSeeded() }
+        }
+    }
+
+    override fun onDestroy() {
+        seedScope.cancel()
+        super.onDestroy()
+    }
 
     override fun onScreenCall(callDetails: Call.Details) {
         val response = runBlocking(Dispatchers.IO) {
@@ -79,7 +100,7 @@ class ScreeningService : CallScreeningService() {
 
         // 2. 离线骚扰识别（社区哈希库 + 本地标记缓存）
         var spamDesc: String? = null
-        runCatching { SpamHashRepository(ctx).match(cleaned) }.getOrNull()?.let {
+        runCatching { SpamHashRepository(ctx).match(cleaned, allowSeed = false) }.getOrNull()?.let {
             spamDesc = it.description
         }
         if (spamDesc == null) {
@@ -106,7 +127,7 @@ class ScreeningService : CallScreeningService() {
             if (loc.isNotBlank()) attrParts += loc
             if (i.isNotBlank()) attrParts += i
         }
-        val codeInfo = runCatching { CodeNumberRepository(ctx).lookup(cleaned) }.getOrNull()
+        val codeInfo = runCatching { CodeNumberRepository(ctx).lookup(cleaned, allowSeed = false) }.getOrNull()
             ?.let { CodeNumberRepository(ctx).toDisplay(it) }
         codeInfo?.let { attrParts += it }
 

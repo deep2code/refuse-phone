@@ -20,21 +20,28 @@ import java.io.FileOutputStream
  */
 class PhoneAttributionRepository(context: Context) {
 
+    private val appContext: Context = context.applicationContext
     private val assetName = "phonedata.db"
     private val dbFile: File =
-        File(context.getDatabasePath("phonedata.db").parent ?: context.filesDir.path, "phonedata.db")
+        File(appContext.getDatabasePath("phonedata.db").parent ?: appContext.filesDir.path, "phonedata.db")
 
+    /**
+     * 是否启用离线归属地库。
+     *
+     * 访问此属性会（在调用线程上）确保把 assets/phonedata.db 拷贝到应用数据库目录。
+     * 所有调用方（PhoneRepository.query、ScreeningService、CallHandlerService）都在 IO 线程访问，
+     * 因此首次 25MB 拷贝发生在后台，不会阻塞主线程 / 系统来电回调线程。
+     */
     val isEnabled: Boolean
-        get() = dbFile.exists()
+        get() {
+            copyIfNeeded()
+            return dbFile.exists()
+        }
 
-    init {
-        copyIfNeeded(context)
-    }
-
-    private fun copyIfNeeded(context: Context) {
+    private fun copyIfNeeded() {
         if (dbFile.exists()) return
         runCatching {
-            context.assets.open(assetName).use { input ->
+            appContext.assets.open(assetName).use { input ->
                 FileOutputStream(dbFile).use { out -> input.copyTo(out) }
             }
         }

@@ -21,23 +21,24 @@ import com.example.phonequery.db.RecentCallEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsDataStore = SettingsDataStore(application)
-    private val blocklistRepository = BlocklistRepository(application)
-    private val markCacheRepository = MarkCacheRepository(application)
-    private val spamHashRepository = SpamHashRepository(application)
-    private val codeNumberRepository = CodeNumberRepository(application)
-    private val recentCallRepository = RecentCallRepository(application)
+    private val blocklistRepository by lazy { BlocklistRepository(application) }
+    private val markCacheRepository by lazy { MarkCacheRepository(application) }
+    private val spamHashRepository by lazy { SpamHashRepository(application) }
+    private val codeNumberRepository by lazy { CodeNumberRepository(application) }
+    private val recentCallRepository by lazy { RecentCallRepository(application) }
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             combine(
                 settingsDataStore.settingsFlow,
                 blocklistRepository.blacklist,
@@ -214,7 +215,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val codeNumberCount: StateFlow<Int> = _codeNumberCount
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _cacheCount.value = markCacheRepository.count()
             spamHashRepository.ensureSeeded()
             _spamHashCount.value = spamHashRepository.count()

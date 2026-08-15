@@ -37,8 +37,12 @@ class CodeNumberRepository(context: Context) {
         seeded.set(true)
     }
 
-    private suspend fun all(): List<CodeNumberEntity> {
-        ensureSeeded()
+    private suspend fun all(allowSeed: Boolean = true): List<CodeNumberEntity> {
+        if (allowSeed) {
+            ensureSeeded()
+        } else if (dao.count() == 0) {
+            return emptyList()
+        }
         cache?.let { return it }
         val list = runCatching { dao.getAll() }.getOrDefault(emptyList())
         // 按前缀长度降序，便于「最长匹配」优先
@@ -51,13 +55,13 @@ class CodeNumberRepository(context: Context) {
      * 查询号码对应的码号资源信息；命中返回实体，否则 null。
      * 仅对 95/96/106/400/800 等特殊号段尝试匹配，普通手机/固话直接返回 null。
      */
-    suspend fun lookup(rawNumber: String): CodeNumberEntity? {
+    suspend fun lookup(rawNumber: String, allowSeed: Boolean = true): CodeNumberEntity? {
         val digits = rawNumber.replace(Regex("\\D"), "")
             .removePrefix("86")
             .removePrefix("+")
         if (digits.length < 3) return null
         if (!Regex("^(95|96|106|400|800)").containsMatchIn(digits)) return null
-        val list = all()
+        val list = all(allowSeed)
         return list.firstOrNull { digits.startsWith(it.id) }
     }
 

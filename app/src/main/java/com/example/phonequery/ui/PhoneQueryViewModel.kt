@@ -16,17 +16,19 @@ import com.example.phonequery.model.PhoneInfo
 import com.example.phonequery.model.ResultSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class InputType { MOBILE, LANDLINE }
 
 class PhoneQueryViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = PhoneRepository(application.applicationContext)
-    private val enterpriseRepository = EnterpriseRepository(application.applicationContext)
-    private val blocklistRepository = BlocklistRepository(application.applicationContext)
-    private val markCacheRepository = MarkCacheRepository(application.applicationContext)
-    private val areaCodeHelper = AreaCodeHelper(application.applicationContext)
+    private val repository by lazy { PhoneRepository(application.applicationContext) }
+    private val enterpriseRepository by lazy { EnterpriseRepository(application.applicationContext) }
+    private val blocklistRepository by lazy { BlocklistRepository(application.applicationContext) }
+    private val markCacheRepository by lazy { MarkCacheRepository(application.applicationContext) }
+    private val areaCodeHelper by lazy { AreaCodeHelper(application.applicationContext) }
 
     private val _uiState = MutableStateFlow(PhoneQueryUiState())
     val uiState: StateFlow<PhoneQueryUiState> = _uiState
@@ -86,6 +88,17 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    private data class QuerySnapshot(
+        val result: PhoneInfo,
+        val inBlacklist: Boolean,
+        val inWhitelist: Boolean,
+        val inContacts: Boolean,
+        val contactsGranted: Boolean,
+        val userMark: String?,
+        val landlineBreakdown: LandlineLocation?,
+        val landlineValidation: String?
+    )
+
     fun query() {
         val number = _uiState.value.number.trim()
         if (number.isEmpty()) {
@@ -105,54 +118,69 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
         )
 
         viewModelScope.launch {
-            val result = repository.query(number)
-            // 计算该号码在黑名单 / 白名单 / 通讯录中的状态，以及用户主动标记
-            val digits = result.number.replace(Regex("[^0-9]"), "")
-            val inBlack = blocklistRepository.isBlacklisted(digits)
-            val inWhite = blocklistRepository.isWhitelisted(digits)
-            val contactsGranted = ContactChecker.hasPermission(getApplication())
-            val inContacts = if (contactsGranted) {
-                ContactChecker.isInContacts(getApplication(), digits)
-            } else false
-            val userMark = markCacheRepository.getUserMark(digits)
+            // 所有重活（Repository 实例化 + 查号 + 读 DB + 解析区号）都在 IO 线程完成，
+            // 主线程只负责构造 ViewModel 壳与更新 UI 状态，避免冷启动/查询卡顿。
+            val snapshot = withContext(Dispatchers.IO) {
+                val result = repository.query(number)
+                // 计算该号码在黑名单 / 白名单 / 通讯录中的状态，以及用户主动标记
+                val digits = result.number.replace(Regex("[^0-9]"), "")
+                val inBlack = blocklistRepository.isBlacklisted(digits)
+                val inWhite = blocklistRepository.isWhitelisted(digits)
+                val contactsGranted = ContactChecker.hasPermission(getApplication())
+                val inContacts = if (contactsGranted) {
+                    ContactChecker.isInContacts(getApplication(), digits)
+                } else false
+                val userMark = markCacheRepository.getUserMark(digits)
 
-            // 固话编码规律适配（与输入实时解析保持一致）
-            val (landlineBreakdown, landlineValidation) = if (number.startsWith("0")
-                || result.numberType == NumberType.LANDLINE) {
-                computeLandline(number)
-            } else (null to null)
+                // 固话编码规律适配（与输入实时解析保持一致）
+                val (landlineBreakdown, landlineValidation) = if (number.startsWith("0")
+                    || result.numberType == NumberType.LANDLINE) {
+                    computeLandline(number)
+                } else (null to null)
 
-            // 容错：libphonenumber 对部分合法固话（如 7 位本地号）会判为「号码格式无效」，
-            // 若我们的区号表能识别且本地号为 7/8 位，则以区号表为准，避免误报「无法识别」。
-            val finalResult = if (landlineBreakdown != null && landlineValidation == null
-                && (result.errorMessage != null || result.numberType == NumberType.UNKNOWN)
-            ) {
-                result.copy(
-                    numberType = NumberType.LANDLINE,
-                    province = landlineBreakdown.province ?: result.province,
-                    city = landlineBreakdown.city ?: result.city,
-                    areaCode = landlineBreakdown.areaCode,
-                    errorMessage = null,
-                    source = if (result.errorMessage != null) ResultSource.OFFLINE else result.source
+                // 容错：libphonenumber 对部分合法固话（如 7 位本地号）会判为「号码格式无效」，
+                // 若我们的区号表能识别且本地号为 7/8 位，则以区号表为准，避免误报「无法识别」。
+                val finalResult = if (landlineBreakdown != null && landlineValidation == null
+                    && (result.errorMessage != null || result.numberType == NumberType.UNKNOWN)
+                ) {
+                    result.copy(
+                        numberType = NumberType.LANDLINE,
+                        province = landlineBreakdown.province ?: result.province,
+                        city = landlineBreakdown.city ?: result.city,
+                        areaCode = landlineBreakdown.areaCode,
+                        errorMessage = null,
+                        source = if (result.errorMessage != null) ResultSource.OFFLINE else result.source
+                    )
+                } else result
+
+                QuerySnapshot(
+                    result = finalResult,
+                    inBlacklist = inBlack,
+                    inWhitelist = inWhite,
+                    inContacts = inContacts,
+                    contactsGranted = contactsGranted,
+                    userMark = userMark,
+                    landlineBreakdown = landlineBreakdown,
+                    landlineValidation = landlineValidation
                 )
-            } else result
+            }
 
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
-                result = finalResult,
-                isInBlacklist = inBlack,
-                isInWhitelist = inWhite,
-                isInContacts = inContacts,
-                contactsPermissionGranted = contactsGranted,
-                userMark = userMark,
-                landlineBreakdown = landlineBreakdown,
-                landlineValidation = landlineValidation
+                result = snapshot.result,
+                isInBlacklist = snapshot.inBlacklist,
+                isInWhitelist = snapshot.inWhitelist,
+                isInContacts = snapshot.inContacts,
+                contactsPermissionGranted = snapshot.contactsGranted,
+                userMark = snapshot.userMark,
+                landlineBreakdown = snapshot.landlineBreakdown,
+                landlineValidation = snapshot.landlineValidation
             )
 
             // 如果是固话，自动推断相似企业
-            if (result.numberType == NumberType.LANDLINE
+            if (snapshot.result.numberType == NumberType.LANDLINE
                 || number.startsWith("0")
-                || result.numberType == NumberType.UNKNOWN) {
+                || snapshot.result.numberType == NumberType.UNKNOWN) {
                 querySimilarEnterprises(number)
             }
         }
