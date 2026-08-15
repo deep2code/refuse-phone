@@ -117,6 +117,34 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /** 在线查询总开关：开启即把号码发往已配置的在线标记源（juhe / 阿里云），隐私敏感，默认关。 */
+    fun setOnlineLookup(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsDataStore.updateOnlineLookup(enabled)
+        }
+    }
+
+    /** 保存聚合数据 juhe.cn 密钥（个人实名后获取），留空则 juhe 源不生效。 */
+    fun setJuheKey(value: String) {
+        viewModelScope.launch {
+            settingsDataStore.updateJuheKey(value)
+        }
+    }
+
+    /** 保存阿里云云市场「聚美智数」号码标记 APPCODE，留空则此源不生效。 */
+    fun setAliyunMarkAppcode(value: String) {
+        viewModelScope.launch {
+            settingsDataStore.updateAliyunMarkAppcode(value)
+        }
+    }
+
+    /** 保存阿里云云市场「聚美智数」号码标记调用地址。 */
+    fun setAliyunMarkUrl(value: String) {
+        viewModelScope.launch {
+            settingsDataStore.updateAliyunMarkUrl(value)
+        }
+    }
+
     val hasSeenSetupGuide: Flow<Boolean> = settingsDataStore.hasSeenSetupGuide
 
     fun markSetupGuideSeen() {

@@ -4,16 +4,16 @@ import android.content.Context
 import com.example.phonequery.data.source.AliyunMarkSource
 import com.example.phonequery.data.source.BaiduSource
 import com.example.phonequery.data.source.JuheSource
+import com.example.phonequery.data.source.JuheMarkSource
 import com.example.phonequery.data.source.OnlineMarkSource
 import com.example.phonequery.data.source.SourceResult
-import com.example.phonequery.data.source.TminiSource
 import com.example.phonequery.data.source.mergeSourceResults
 import com.example.phonequery.model.NumberType
 import com.example.phonequery.model.PhoneInfo
 import com.example.phonequery.model.PlatformMark
 import com.example.phonequery.model.ResultSource
+import com.example.phonequery.data.AppSettings
 import com.example.phonequery.data.PhoneAttributionRepository
-import com.example.phonequery.network.TminiService
 import com.google.i18n.phonenumbers.PhoneNumberToCarrierMapper
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.Phonenumber
@@ -31,9 +31,6 @@ class PhoneRepository(context: Context) {
     private val geocoder = PhoneNumberOfflineGeocoder.getInstance()
     private val carrierMapper = PhoneNumberToCarrierMapper.getInstance()
 
-    // 零 key 默认源：tmini 免费聚合网关
-    private val tminiService: TminiService = NetworkModule.tminiRetrofit.create(TminiService::class.java)
-
     // 本地标记缓存：在线结果落库，断网/接口失效时回退
     private val markCacheRepository: MarkCacheRepository = MarkCacheRepository(context)
 
@@ -48,23 +45,11 @@ class PhoneRepository(context: Context) {
     private val phoneAttributionRepository: PhoneAttributionRepository = PhoneAttributionRepository(context)
 
     /**
-     * 可插拔在线源链：
-     * - tmini：默认零 key，必启用，已聚合 360/百度/腾讯等标记 + 固话企业反查。
-     * - juhe / baidu：可选，仅当 local.properties 配置了对应 key 时启用。
-     */
-    private val sources: List<OnlineMarkSource> = listOfNotNull(
-        TminiSource(tminiService),
-        JuheSource().takeIf { it.isEnabled },
-        BaiduSource().takeIf { it.isEnabled },
-        AliyunMarkSource().takeIf { it.isEnabled }
-    )
-
-    /**
      * 主查询入口：
      * 1. 本地离线解析（libphonenumber + 中国号段库）
      * 2. 本地号段库匹配（零 key，虚商/高风险号段提示）
      * 3. 社区骚扰库 md5 匹配（零 key，开源众包清单）
-     * 4. 在线源链（tmini 默认 + 可选 juhe/baidu）→ 结果回写本地缓存
+     * 4. 在线源链（juhe 标记/归属地 + 阿里云多平台标记）→ 结果回写本地缓存
      */
     suspend fun query(number: String): PhoneInfo = withContext(Dispatchers.IO) {
         val cleaned = number.trim()
@@ -120,14 +105,16 @@ class PhoneRepository(context: Context) {
         // 读取本地缓存标记（断网也能标记骚扰/诈骗）
         val cached = runCatching { markCacheRepository.getCachedMark(digits) }.getOrNull()
 
-        // 第三层：在线源链（tmini 默认 + 可选 juhe/baidu）
+        // 第三层：在线源链（juhe 标记/归属地 + 阿里云多平台标记）
         // 受「在线查询开关」控制：默认关闭（离线优先），开启才会把号码发到第三方网关。
-        val onlineEnabled = try {
-            SettingsDataStore(appContext).settingsFlow.first().enableOnlineLookup
+        // 各源的 key 由用户在设置中填写（运行时），未配置则对应源自动跳过。
+        val settings = try {
+            SettingsDataStore(appContext).settingsFlow.first()
         } catch (_: Exception) {
-            false
+            null
         }
-        val online = if (onlineEnabled) queryOnline(cleaned, base.numberType) else null
+        val onlineEnabled = settings?.enableOnlineLookup ?: false
+        val online = if (onlineEnabled) queryOnline(cleaned, base.numberType, settings) else null
 
         return@withContext if (online != null) {
             val merged = mergeOnlineToPhoneInfo(base, online)
@@ -155,8 +142,17 @@ class PhoneRepository(context: Context) {
         }
     }
 
-    /** 依次尝试各在线源，合并结果（前者字段优先）。 */
-    private suspend fun queryOnline(number: String, type: NumberType): SourceResult? {
+    /** 依次尝试各在线源，合并结果（前者字段优先）。各源 key 来自用户设置，未配置则跳过。 */
+    private suspend fun queryOnline(number: String, type: NumberType, settings: AppSettings?): SourceResult? {
+        val juheKey = settings?.juheKey ?: ""
+        val aliyunAppcode = settings?.aliyunMarkAppcode ?: ""
+        val aliyunUrl = settings?.aliyunMarkUrl ?: ""
+        val sources = listOfNotNull(
+            JuheMarkSource(juheKey),
+            JuheSource(juheKey),
+            AliyunMarkSource(aliyunAppcode, aliyunUrl),
+            BaiduSource().takeIf { it.isEnabled }
+        )
         var merged: SourceResult? = null
         for (src in sources) {
             if (!src.isEnabled) continue

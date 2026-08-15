@@ -1,6 +1,5 @@
 package com.example.phonequery.data.source
 
-import com.example.phonequery.BuildConfig
 import com.example.phonequery.model.NumberType
 import com.example.phonequery.model.PlatformMark
 import kotlinx.coroutines.Dispatchers
@@ -13,19 +12,21 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 /**
- * 可选在线标记源：阿里云市场「多平台号码标记查询 API」。
+ * 可选在线标记源：阿里云市场「多平台号码标记查询 API」（聚美智数等商品）。
  * 聚合 腾讯手机管家 / 百度手机卫士 / 电话邦 / 360 / 泰迪熊 等多家平台的号码标记。
  *
  * 重要说明：
- * - 需要 BuildConfig.ALIYUN_MARK_APPCODE（阿里云市场 APPCODE）与 BuildConfig.ALIYUN_MARK_URL（调用地址）。
+ * - appcode 与 url 由构造注入（设置中用户填写），未配置则 isEnabled=false，不参与查询、也不发起任何请求。
  * - 该 API 为「异步任务式」：先提交查询拿到 taskNo，再轮询取结果，本类已封装该流程。
  * - 不同商品的请求路径/返回字段可能略有差异。若解析异常，请按你购买的「调用说明」微调 [submit]/[poll]/[parseMarks]。
- * - 未配置时 isEnabled=false，不参与查询、也不发起任何网络请求。
  */
-class AliyunMarkSource : OnlineMarkSource {
+class AliyunMarkSource(
+    private val appcode: String = "",
+    private val url: String = "",
+    private val resultUrl: String = ""
+) : OnlineMarkSource {
     override val name = "aliyun-mark"
-    override val isEnabled: Boolean =
-        BuildConfig.ALIYUN_MARK_APPCODE.isNotBlank() && BuildConfig.ALIYUN_MARK_URL.isNotBlank()
+    override val isEnabled: Boolean = appcode.isNotBlank() && url.isNotBlank()
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -50,8 +51,8 @@ class AliyunMarkSource : OnlineMarkSource {
     /** 提交查询，返回任务号（兼容多种返回字段）。 */
     private fun submit(phone: String): String? {
         val body = FormBody.Builder().add("phone", phone).build()
-        val request = Request.Builder().url(BuildConfig.ALIYUN_MARK_URL)
-            .addHeader("Authorization", "APPCODE ${BuildConfig.ALIYUN_MARK_APPCODE}")
+        val request = Request.Builder().url(url)
+            .addHeader("Authorization", "APPCODE $appcode")
             .post(body)
             .build()
         client.newCall(request).execute().use { resp ->
@@ -65,11 +66,11 @@ class AliyunMarkSource : OnlineMarkSource {
 
     /** 轮询结果（最多 3 次）。 */
     private fun poll(taskNo: String): JSONObject? {
-        val resultUrl = BuildConfig.ALIYUN_MARK_RESULT_URL.ifBlank { BuildConfig.ALIYUN_MARK_URL }
+        val resultUrl = resultUrl.ifBlank { url }
         repeat(3) { i ->
             val url = "$resultUrl?queryTaskNo=$taskNo"
             val request = Request.Builder().url(url)
-                .addHeader("Authorization", "APPCODE ${BuildConfig.ALIYUN_MARK_APPCODE}")
+                .addHeader("Authorization", "APPCODE $appcode")
                 .get()
                 .build()
             runCatching {

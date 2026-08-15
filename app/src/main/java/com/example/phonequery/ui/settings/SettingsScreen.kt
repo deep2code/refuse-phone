@@ -27,6 +27,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,6 +41,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import com.example.phonequery.R
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.LaunchedEffect
@@ -327,6 +330,72 @@ fun SettingsScreen(
                             )
                         }
                     }
+            }
+
+            // 在线查询（号码标记）：juhe 标记/归属地 + 阿里云多平台标记，key 由用户填写
+            AppCard {
+                Text(
+                    text = stringResource(R.string.setting_online_lookup),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                SettingRow(
+                    title = stringResource(R.string.setting_online_lookup),
+                    desc = stringResource(R.string.setting_online_lookup_desc),
+                    checked = settings.enableOnlineLookup,
+                    onCheckedChange = { viewModel.setOnlineLookup(it) }
+                )
+                if (settings.enableOnlineLookup) {
+                    Text(
+                        text = stringResource(R.string.setting_online_sources_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    var juheText by remember { mutableStateOf(settings.juheKey) }
+                    LaunchedEffect(settings.juheKey) { juheText = settings.juheKey }
+                    OutlinedTextField(
+                        value = juheText,
+                        onValueChange = {
+                            juheText = it
+                            viewModel.setJuheKey(it)
+                        },
+                        label = { Text(stringResource(R.string.setting_juhe_key)) },
+                        placeholder = { Text(stringResource(R.string.setting_juhe_key_hint)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    var aliyunCodeText by remember { mutableStateOf(settings.aliyunMarkAppcode) }
+                    LaunchedEffect(settings.aliyunMarkAppcode) { aliyunCodeText = settings.aliyunMarkAppcode }
+                    OutlinedTextField(
+                        value = aliyunCodeText,
+                        onValueChange = {
+                            aliyunCodeText = it
+                            viewModel.setAliyunMarkAppcode(it)
+                        },
+                        label = { Text(stringResource(R.string.setting_aliyun_appcode)) },
+                        placeholder = { Text(stringResource(R.string.setting_aliyun_appcode_hint)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    var aliyunUrlText by remember { mutableStateOf(settings.aliyunMarkUrl) }
+                    LaunchedEffect(settings.aliyunMarkUrl) { aliyunUrlText = settings.aliyunMarkUrl }
+                    OutlinedTextField(
+                        value = aliyunUrlText,
+                        onValueChange = {
+                            aliyunUrlText = it
+                            viewModel.setAliyunMarkUrl(it)
+                        },
+                        label = { Text(stringResource(R.string.setting_aliyun_url)) },
+                        placeholder = { Text(stringResource(R.string.setting_aliyun_url_hint)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
 
             if (settings.enableJobHuntMode) {

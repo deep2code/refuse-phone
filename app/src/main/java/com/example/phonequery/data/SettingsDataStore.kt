@@ -32,6 +32,12 @@ class SettingsDataStore(context: Context) {
         val ENABLE_BLOCK_NON_CONTACTS = booleanPreferencesKey("enable_block_non_contacts")
         /** 在线查询总开关：默认关闭（离线优先，保护隐私，不把号码发给第三方） */
         val ENABLE_ONLINE_LOOKUP = booleanPreferencesKey("enable_online_lookup")
+        /** 聚合数据 juhe.cn 密钥：个人实名后获取，用于号码标记 + 归属地增强（留空则此源不生效） */
+        val JUHE_KEY = stringPreferencesKey("juhe_key")
+        /** 阿里云云市场「聚美智数」号码标记 APPCODE：个人购买后获取（留空则此源不生效） */
+        val ALIYUN_MARK_APPCODE = stringPreferencesKey("aliyun_mark_appcode")
+        /** 阿里云云市场「聚美智数」号码标记调用地址（不同商品路径不同，需按购买商品填写） */
+        val ALIYUN_MARK_URL = stringPreferencesKey("aliyun_mark_url")
         /** 拦截动作：block=拒接 / log=放行仅记录 */
         val INTERCEPT_ACTION = stringPreferencesKey("intercept_action")
         /** 悬浮窗透明度 0.3~1.0 */
@@ -51,6 +57,9 @@ class SettingsDataStore(context: Context) {
             enableCallScreening = prefs[ENABLE_CALL_SCREENING] ?: false,
             enableBlockNonContacts = prefs[ENABLE_BLOCK_NON_CONTACTS] ?: false,
             enableOnlineLookup = prefs[ENABLE_ONLINE_LOOKUP] ?: false,
+            juheKey = prefs[JUHE_KEY] ?: "",
+            aliyunMarkAppcode = prefs[ALIYUN_MARK_APPCODE] ?: "",
+            aliyunMarkUrl = prefs[ALIYUN_MARK_URL] ?: "",
             interceptAction = prefs[INTERCEPT_ACTION] ?: AppSettings.INTERCEPT_BLOCK,
             floatingAlpha = prefs[FLOATING_ALPHA] ?: 0.9f
         )
@@ -104,6 +113,18 @@ class SettingsDataStore(context: Context) {
         dataStore.edit { it[ENABLE_ONLINE_LOOKUP] = enabled }
     }
 
+    suspend fun updateJuheKey(value: String) {
+        dataStore.edit { it[JUHE_KEY] = value.trim() }
+    }
+
+    suspend fun updateAliyunMarkAppcode(value: String) {
+        dataStore.edit { it[ALIYUN_MARK_APPCODE] = value.trim() }
+    }
+
+    suspend fun updateAliyunMarkUrl(value: String) {
+        dataStore.edit { it[ALIYUN_MARK_URL] = value.trim() }
+    }
+
     suspend fun updateInterceptAction(action: String) {
         dataStore.edit { it[INTERCEPT_ACTION] = action }
     }
@@ -124,6 +145,9 @@ data class AppSettings(
     val enableCallScreening: Boolean = false,
     val enableBlockNonContacts: Boolean = false,
     val enableOnlineLookup: Boolean = false,
+    val juheKey: String = "",
+    val aliyunMarkAppcode: String = "",
+    val aliyunMarkUrl: String = "",
     val interceptAction: String = INTERCEPT_BLOCK,
     val floatingAlpha: Float = 0.9f
 ) {

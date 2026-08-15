@@ -26,17 +26,7 @@ object NetworkModule {
         .build()
 
     /**
-     * tmini.net 免费聚合网关（零 key）。
-     * 作为默认的号码标记 + 企业反查来源，无需配置任何 API Key 即可使用。
-     */
-    val tminiRetrofit: Retrofit = Retrofit.Builder()
-        .client(okHttpClient)
-        .baseUrl("https://www.tmini.net/")
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-
-    /**
-     * 聚合数据接口（可选在线源）。key 在编译期通过 BuildConfig.JUHE_KEY 注入。
+     * 聚合数据接口（可选在线标记/归属地源）。key 由用户在设置中填写，运行时注入到 JuheService 调用。
      */
     val juheRetrofit: Retrofit = Retrofit.Builder()
         .client(okHttpClient)
