@@ -17,9 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
+        # 必须全量历史：versionCode 用 git 提交数自增，浅克隆会恒为 1
         uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v5.7.0
         with:
           distribution: temurin
@@ -62,9 +65,12 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.build_release)
     steps:
       - name: Checkout
+        # 必须全量历史：versionCode 用 git 提交数自增，浅克隆会恒为 1
         uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v5.7.0
         with:
           distribution: temurin
