@@ -8,7 +8,12 @@ struct SettingsView: View {
         NavigationView {
             Form {
                 Section("来电识别扩展") {
-                    LabeledContent("状态", value: reloadState.isEmpty ? "未检查" : reloadState)
+                    HStack {
+                        Text("状态")
+                        Spacer()
+                        Text(reloadState.isEmpty ? "未检查" : reloadState)
+                            .foregroundColor(.secondary)
+                    }
                     Button("刷新拦截名单") {
                         reloadExtension()
                     }
@@ -18,8 +23,17 @@ struct SettingsView: View {
                 }
 
                 Section("关于") {
-                    LabeledContent("版本", value: appVersion())
-                    LabeledContent("数据", value: "内置 phonedata.db · 区号库 · 码号资源表")
+                    HStack {
+                        Text("版本")
+                        Spacer()
+                        Text(appVersion()).foregroundColor(.secondary)
+                    }
+                    HStack {
+                        Text("数据")
+                        Spacer()
+                        Text("内置 phonedata.db · 区号库 · 码号资源表")
+                            .foregroundColor(.secondary)
+                    }
                     Text("纯离线识别，号码不上传任何服务器。")
                         .font(.footnote)
                         .foregroundColor(.secondary)

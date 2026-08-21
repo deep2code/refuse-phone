@@ -26,9 +26,20 @@ jobs:
       - name: Build (unsigned, iphoneos)
         working-directory: ios
         run: |
+          set +e
           xcodebuild -project RefusePhone.xcodeproj -scheme RefusePhone \
             -configuration Debug -sdk iphoneos -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build > build.log 2>&1
+          EC=$?
+          if [ $EC -ne 0 ]; then
+            {
+              echo "## xcodebuild failed (exit $EC)"
+              echo '```'
+              grep -E "error:|BUILD FAILED|The following build commands failed|warning: " build.log | head -40
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $EC
 
       - name: Package .app
         working-directory: ios
