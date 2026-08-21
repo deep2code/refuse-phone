@@ -39,6 +39,7 @@ targets:
     platform: iOS
     sources:
       - path: RefusePhone/CallDirectory
+      - path: RefusePhone/Core
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.refusephone.CallDirectory
