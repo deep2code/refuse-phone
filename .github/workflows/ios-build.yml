@@ -24,33 +24,19 @@ jobs:
         run: xcodegen generate
 
       - name: Build (unsigned, iphoneos)
-        id: build
-        continue-on-error: true
         working-directory: ios
         run: |
-          xcodebuild -version
-          xcodegen version || true
+          set +e
           xcodebuild -project RefusePhone.xcodeproj -scheme RefusePhone \
             -configuration Debug -sdk iphoneos -derivedDataPath build/DerivedData \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build > build.log 2>&1
           EC=$?
-          echo "xcodebuild_exit=$EC" | tee -a "$GITHUB_STEP_SUMMARY"
-          tail -25 build.log | tee -a "$GITHUB_STEP_SUMMARY"
-          exit 0
-
-      - name: Show build errors
-        if: steps.build.outcome == 'failure'
-        working-directory: ios
-        run: |
-          {
-            echo '## xcodebuild errors'
-            echo '```'
-            grep -E "error:|BUILD FAILED|The following build commands failed" build.log | head -40
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          grep -E "error:|BUILD FAILED" build.log | head -20
-          test -s <(grep -E "error:|BUILD FAILED" build.log)
-
+          if [ $EC -ne 0 ]; then
+            echo "::error::xcodebuild exit=$EC"
+            grep -E "error:|BUILD FAILED|The following build commands failed|warning: " build.log | head -15 | while IFS= read -r line; do echo "::error::$line"; done
+            tail -5 build.log | while IFS= read -r line; do echo "::error::$line"; done
+          fi
+          exit $EC
 
       - name: Package .app
         working-directory: ios
