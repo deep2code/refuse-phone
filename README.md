@@ -33,7 +33,7 @@
 
 - **UI**：Jetpack Compose + Material 3
 - **架构**：MVVM + Repository 模式
-- **依赖注入**：Hilt
+- **依赖注入**：手动构造注入（无框架，仓库层以单例/懒加载复用）
 - **本地数据**：Room（黑名单、标记缓存、号段库）
 - **来电处理**：`CallScreeningService` / `TelecomManager`
 - **构建**：AGP 8.9.0 / Gradle 8.11.1 / JDK 21 / compileSdk 34 / minSdk 24

@@ -1,6 +1,7 @@
 package com.example.phonequery.data.source
 
 import com.example.phonequery.BuildConfig
+import com.example.phonequery.data.NON_DIGIT_REGEX
 import com.example.phonequery.model.NumberType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -31,7 +32,7 @@ class BaiduSource : OnlineMarkSource {
     override suspend fun query(number: String, type: NumberType): SourceResult? {
         if (!isEnabled) return null
         if (type != NumberType.MOBILE) return null
-        val digits = number.replace(Regex("\\D"), "")
+        val digits = number.replace(NON_DIGIT_REGEX, "")
         if (digits.length != 11) return null
 
         val url = "${BuildConfig.BAIDU_PHONE_API_URL}?phone=$digits&key=${BuildConfig.BAIDU_PHONE_KEY}"

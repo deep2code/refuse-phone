@@ -30,14 +30,14 @@ class BlocklistRepository(context: Context) {
 
     /** 新增精确号码（兼容旧逻辑） */
     suspend fun add(number: String, note: String, isBlock: Boolean) {
-        val clean = number.replace(Regex("[^0-9]"), "")
+        val clean = number.replace(DIGITS_ONLY_REGEX, "")
         if (clean.isBlank()) return
         dao.insert(BlocklistEntity(number = clean, note = note, isBlock = isBlock))
     }
 
     /** 新增号段/区号前缀规则（整段匹配） */
     suspend fun addPrefix(prefix: String, label: String, isBlock: Boolean) {
-        val clean = prefix.replace(Regex("[^0-9]"), "")
+        val clean = prefix.replace(DIGITS_ONLY_REGEX, "")
         if (clean.isBlank()) return
         // 先按号码去重，避免重复插入同一条规则
         findByNumber(clean)?.let { dao.delete(it) }
@@ -65,7 +65,7 @@ class BlocklistRepository(context: Context) {
 
     /** 按区号批量屏蔽（适用于固话骚扰，如 010 / 021 / 0755） */
     suspend fun addAreaCodeBlock(areaCode: String) {
-        val clean = areaCode.replace(Regex("[^0-9]"), "")
+        val clean = areaCode.replace(DIGITS_ONLY_REGEX, "")
         if (clean.isBlank()) return
         addPrefix(clean, "区号 $clean", isBlock = true)
     }
@@ -117,7 +117,7 @@ class BlocklistRepository(context: Context) {
      * @return 命中的黑名单规则，未命中返回 null
      */
     suspend fun evaluateAdvanced(digits: String, city: String?): BlocklistEntity? {
-        val num = digits.replace(Regex("\\D"), "")
+        val num = digits.replace(NON_DIGIT_REGEX, "")
         if (num.isBlank()) return null
         // 正则规则
         dao.getAllByType(BlocklistEntity.TYPE_REGEX).forEach { rule ->
@@ -190,7 +190,7 @@ class BlocklistRepository(context: Context) {
         var imported = 0
         for (i in 0 until rules.length()) {
             val r = runCatching { rules.getJSONObject(i) }.getOrNull() ?: continue
-            val number = r.optString("number").replace(Regex("[^0-9!]"), "")
+            val number = r.optString("number").replace(DIGITS_BANG_REGEX, "")
             val type = r.optString("type", BlocklistEntity.TYPE_EXACT)
             val label = r.optString("label")
             val note = r.optString("note")
@@ -231,15 +231,15 @@ class BlocklistRepository(context: Context) {
     }
 
     suspend fun isBlacklisted(number: String): Boolean {
-        return dao.isBlacklisted(number.replace(Regex("[^0-9]"), ""))
+        return dao.isBlacklisted(number.replace(DIGITS_ONLY_REGEX, ""))
     }
 
     suspend fun isWhitelisted(number: String): Boolean {
-        return dao.isWhitelisted(number.replace(Regex("[^0-9]"), ""))
+        return dao.isWhitelisted(number.replace(DIGITS_ONLY_REGEX, ""))
     }
 
     suspend fun toggle(number: String, note: String, isBlock: Boolean) {
-        val clean = number.replace(Regex("[^0-9]"), "")
+        val clean = number.replace(DIGITS_ONLY_REGEX, "")
         val existing = findByNumber(clean)
         if (existing != null) {
             delete(existing)

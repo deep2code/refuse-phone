@@ -56,7 +56,7 @@ class CodeNumberRepository(context: Context) {
      * 仅对 95/96/106/400/800 等特殊号段尝试匹配，普通手机/固话直接返回 null。
      */
     suspend fun lookup(rawNumber: String, allowSeed: Boolean = true): CodeNumberEntity? {
-        val digits = rawNumber.replace(Regex("\\D"), "")
+        val digits = rawNumber.replace(NON_DIGIT_REGEX, "")
             .removePrefix("86")
             .removePrefix("+")
         if (digits.length < 3) return null

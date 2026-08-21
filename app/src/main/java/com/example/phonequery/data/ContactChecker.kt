@@ -23,7 +23,7 @@ object ContactChecker {
      */
     fun isInContacts(context: Context, number: String): Boolean {
         if (!hasPermission(context)) return false
-        val digits = number.replace(Regex("\\D"), "")
+        val digits = number.replace(NON_DIGIT_REGEX, "")
         if (digits.isBlank()) return false
         return try {
             // 依次尝试原始号码与纯数字，覆盖 +86 / 分隔符 / 区号等情形

@@ -22,6 +22,7 @@ import com.example.phonequery.MainActivity
 import com.example.phonequery.R
 import com.example.phonequery.data.PhoneRepository
 import com.example.phonequery.data.ContactChecker
+import com.example.phonequery.data.NON_DIGIT_REGEX
 import com.example.phonequery.data.SettingsDataStore
 import com.example.phonequery.data.BlocklistRepository
 import com.example.phonequery.data.PhoneAttributionRepository
@@ -52,6 +53,10 @@ class CallHandlerService : Service() {
     private var floatingWindow: FloatingWindowManager? = null
     private var previousRingerMode: Int? = null
 
+    /** 设置快照缓存：DataStore 变更自动刷新，避免每通来电阻塞读盘。 */
+    @Volatile
+    private var cachedSettings: AppSettings? = null
+
     override fun onCreate() {
         super.onCreate()
         phoneRepository = PhoneRepository(this)
@@ -61,6 +66,11 @@ class CallHandlerService : Service() {
         recentCallRepository = RecentCallRepository(this)
         db = AppDatabase.getInstance(this)
         floatingWindow = FloatingWindowManager(this)
+
+        // 预加载设置快照（DataStore 首次读盘后即内存缓存，此处只收更新）
+        serviceScope.launch {
+            settingsDataStore.settingsFlow.collect { cachedSettings = it }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -83,13 +93,13 @@ class CallHandlerService : Service() {
         if (number.isNullOrBlank()) return
 
         serviceScope.launch {
-            val settings = settingsDataStore.settingsFlow.first()
+            val settings = cachedSettings ?: settingsDataStore.settingsFlow.first()
             if (!settings.enableFloatingWindow && !settings.enableAutoHangup) {
                 stopSelf()
                 return@launch
             }
 
-            val digits = number.replace(Regex("\\D"), "")
+            val digits = number.replace(NON_DIGIT_REGEX, "")
             // 拦截动作：log=仅记录（不实际挂断）；block=默认拒接
             val allowBlock = settings.interceptAction == AppSettings.INTERCEPT_BLOCK
             // 本通来电是否被实际拦截（用于「最近来电」留痕）

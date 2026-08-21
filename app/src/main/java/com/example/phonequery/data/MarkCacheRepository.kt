@@ -14,7 +14,7 @@ import com.google.gson.reflect.TypeToken
 /**
  * 本地标记缓存仓库（零 key）。
  *
- * 把每次 tmini 免费网关查到的号码标记 / 固话企业反查结果落库，
+ * 把每次在线查询（外部网关 / 阿里云）查到的号码标记 / 固话企业反查结果落库，
  * 形成「越用越准的个人内置标记库」——断网或接口失效时仍可标记。
  */
 class MarkCacheRepository(context: Context) {
@@ -108,7 +108,7 @@ class MarkCacheRepository(context: Context) {
      * spamType 为标记内容，如「骚扰 / 诈骗 / 广告营销 / 正常 / 其他」。
      */
     suspend fun markNumber(digits: String, spamType: String) {
-        val clean = digits.replace(Regex("[^0-9]"), "")
+        val clean = digits.replace(DIGITS_ONLY_REGEX, "")
         if (clean.isBlank() || spamType.isBlank()) return
         runCatching {
             dao.upsert(
@@ -124,14 +124,14 @@ class MarkCacheRepository(context: Context) {
 
     /** 读取用户对某号码的主动标记（无则返回 null） */
     suspend fun getUserMark(digits: String): String? {
-        val clean = digits.replace(Regex("[^0-9]"), "")
+        val clean = digits.replace(DIGITS_ONLY_REGEX, "")
         if (clean.isBlank()) return null
         return runCatching { dao.getById("${clean}_USERMARK")?.spamType }.getOrNull()
     }
 
     /** 清除用户对某号码的主动标记 */
     suspend fun clearUserMark(digits: String) {
-        val clean = digits.replace(Regex("[^0-9]"), "")
+        val clean = digits.replace(DIGITS_ONLY_REGEX, "")
         if (clean.isBlank()) return
         runCatching { dao.deleteById("${clean}_USERMARK") }
     }

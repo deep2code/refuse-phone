@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.phonequery.data.AreaCodeHelper
+import com.example.phonequery.data.DIGITS_ONLY_REGEX
 import com.example.phonequery.data.BlocklistRepository
 import com.example.phonequery.data.ContactChecker
 import com.example.phonequery.data.EnterpriseRepository
@@ -39,7 +40,7 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
      * - 手机以 1 开头且 11 位
      */
     private fun detectType(raw: String): InputType? {
-        val digits = raw.replace(Regex("[^0-9]"), "")
+        val digits = raw.replace(DIGITS_ONLY_REGEX, "")
         return when {
             digits.startsWith("0") -> InputType.LANDLINE
             digits.startsWith("1") && digits.length == 11 -> InputType.MOBILE
@@ -123,7 +124,7 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
             val snapshot = withContext(Dispatchers.IO) {
                 val result = repository.query(number)
                 // 计算该号码在黑名单 / 白名单 / 通讯录中的状态，以及用户主动标记
-                val digits = result.number.replace(Regex("[^0-9]"), "")
+                val digits = result.number.replace(DIGITS_ONLY_REGEX, "")
                 val inBlack = blocklistRepository.isBlacklisted(digits)
                 val inWhite = blocklistRepository.isWhitelisted(digits)
                 val contactsGranted = ContactChecker.hasPermission(getApplication())
@@ -225,7 +226,7 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
     /** 主动标记当前号码（我的标记） */
     fun markNumber(spamType: String) {
         val number = _uiState.value.number
-        val digits = number.replace(Regex("[^0-9]"), "")
+        val digits = number.replace(DIGITS_ONLY_REGEX, "")
         if (digits.isBlank()) return
         viewModelScope.launch {
             markCacheRepository.markNumber(digits, spamType)
@@ -241,7 +242,7 @@ class PhoneQueryViewModel(application: Application) : AndroidViewModel(applicati
     /** 清除我对当前号码的主动标记 */
     fun clearUserMark() {
         val number = _uiState.value.number
-        val digits = number.replace(Regex("[^0-9]"), "")
+        val digits = number.replace(DIGITS_ONLY_REGEX, "")
         if (digits.isBlank()) return
         viewModelScope.launch {
             markCacheRepository.clearUserMark(digits)

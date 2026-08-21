@@ -13,7 +13,7 @@ object E164Normalizer {
      * 例：13800138000 → +8613800138000；01012345678 → +861012345678。
      */
     fun normalize(raw: String): String {
-        val cleaned = raw.replace(Regex("[\\s()-]"), "").replace("＋", "+")
+        val cleaned = raw.replace(CLEAN_SPACE_REGEX, "").replace("＋", "+")
         return when {
             cleaned.startsWith("+") -> cleaned
             cleaned.startsWith("86") && cleaned.length == 13 -> "+$cleaned"

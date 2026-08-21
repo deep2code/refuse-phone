@@ -17,6 +17,16 @@ fun localProperty(key: String): String {
     return props.getProperty(key) ?: ""
 }
 
+/** 版本号：优先取环境变量 VERSION_CODE（CI 注入），否则用 git 提交数自动递增。 */
+fun versionCodeValue(): Int {
+    System.getenv("VERSION_CODE")?.toIntOrNull()?.let { return it }
+    return runCatching {
+        ProcessBuilder("git", "rev-list", "--count", "HEAD")
+            .directory(rootProject.file("."))
+            .start().inputStream.bufferedReader().readText().trim().toInt()
+    }.getOrDefault(1)
+}
+
 android {
     namespace = "com.example.phonequery"
     compileSdk = 34
@@ -25,8 +35,8 @@ android {
         applicationId = "com.example.phonequery"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = versionCodeValue()
+        versionName = System.getenv("VERSION_NAME") ?: "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -96,18 +106,22 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.10"
     }
+
+    // Room schema 导出：schemas/ 随仓库提交，供后续 migration 测试 / 演进审计使用
+    kapt {
+        arguments {
+            arg("room.schemaLocation", "$projectDir/schemas")
+        }
+    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
 
-    // 本机走透明代理：lintVitalAnalyzeRelease 会自动联网下载 lint 工具链（dl.google.com），
-    // 其 detached 配置解析在代理证书 PKIX 校验时失败，导致 release 构建中断。
-    // 个人侧载包无需该 lint 卡口，故关闭（如需恢复，删除此块并预先缓存 lint-gradle 即可）。
-    lint {
-        checkReleaseBuilds = false
-    }
+    // 注：release lint 曾因本机透明代理（dev-sidecar MITM）证书信任问题被关闭
+    // （lint 工具链 detached 配置 PKIX 校验失败）。已通过向 ~/.gradle/cacerts.jks
+    // 导入 dev-sidecar 根证书解决，现恢复正常 lint 卡口。
 
     // 本地单元测试（testReleaseUnitTest）跑在 JVM 上，android.jar 为桩实现；
     // 开启 returnDefaultValues 让未实现的 Android API 返回默认值而非抛异常。

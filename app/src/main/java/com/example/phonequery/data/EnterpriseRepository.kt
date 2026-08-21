@@ -31,7 +31,7 @@ class EnterpriseRepository(context: Context) {
             val landline = areaCodeHelper.parseLandline(number)
                 ?: return@withContext Pair(null, emptyList())
 
-            val digits = number.replace(Regex("\\D"), "")
+            val digits = number.replace(NON_DIGIT_REGEX, "")
 
             // 先查本地缓存（断网也能反查）
             val cachedNames = runCatching { markCacheRepository.getCachedEnterprise(digits) }.getOrNull()

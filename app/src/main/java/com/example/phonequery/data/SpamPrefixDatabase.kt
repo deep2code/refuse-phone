@@ -45,7 +45,7 @@ object SpamPrefixDatabase {
      * @return 命中则返回提示，否则 null
      */
     fun match(number: String): SpamHint? {
-        val digits = number.replace(Regex("\\D"), "")
+        val digits = number.replace(NON_DIGIT_REGEX, "")
         if (digits.length < 3) return null
 
         // 中国大陆号码常带 +86 国家码前缀，去掉后再做号段匹配，

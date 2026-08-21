@@ -47,7 +47,10 @@ PKIX path building failed: unable to find valid certification path to requested 
 该配置放在 `~/.gradle/gradle.properties`（**不进 Git 仓库**，因为它是本机环境特有的）：
 
 ```properties
+# 关键：显式置空 proxyHost，让 Gradle 绕过 dev-sidecar 系统代理直连。
+# 走代理时：大文件下载会卡死（CLOSE_WAIT），且 lint 工具链 detached 配置 PKIX 失败。
 org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8 \
+  -Dhttp.proxyHost= -Dhttps.proxyHost= \
   -Djavax.net.ssl.trustStore=/Users/<你>/.gradle/cacerts.jks \
   -Djavax.net.ssl.trustStoreType=JKS \
   -Djavax.net.ssl.trustStorePassword=changeit
@@ -55,9 +58,17 @@ org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8 \
 org.gradle.java.home=/opt/homebrew/opt/openjdk@21
 ```
 
+> 上面的 `-Dhttp.proxyHost= -Dhttps.proxyHost=` 是**必需**的：本机系统代理
+> （dev-sidecar 127.0.0.1:31181, MITM）会导致 release 构建的 lint 工具链下载失败
+> （`Could not resolve com.android.tools.lint:lint-gradle` PKIX）以及大文件下载卡死。
+> 置空后 Gradle 直连 dl.google.com / mavenCentral / jitpack（均直连可达，且更快更稳）。
+
 ### 重新生成 `cacerts.jks`
 
-如果换了代理或证书过期，用下面的脚本重建：
+如果换了代理或证书过期，用下面的脚本重建。
+> 注意：/etc/ssl/cert.pem **不包含** dev-sidecar 的根证书（MITM 代理），
+> 重建后必须额外导入 `~/.dev-sidecar/dev-sidecar.ca.crt`（或 dev-sidecar 导出的 CA），
+> 否则 release 构建的 lint 工具链下载（detached 配置）会报 PKIX 失败。
 
 ```bash
 #!/bin/bash

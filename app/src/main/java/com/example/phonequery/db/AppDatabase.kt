@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [BlocklistEntity::class, MarkCacheEntity::class, SpamHashEntity::class, CodeNumberEntity::class, RecentCallEntity::class],
     version = 6,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun blocklistDao(): BlocklistDao
@@ -108,7 +108,8 @@ abstract class AppDatabase : RoomDatabase() {
                     "phone_query.db"
                 )
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
-                    .fallbackToDestructiveMigration()
+                    // 注意：刻意不启用 fallbackToDestructiveMigration()。
+                    // 迁移失败宁可让应用崩溃并提示用户升级，也不能静默清空用户黑名单等数据。
                     .build()
                     .also { INSTANCE = it }
             }

@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <!-- targetSdk 34+ 起 phoneCall 前台服务类型需要 MANAGE_OWN_CALLS（normal 权限，自动授予） -->
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
@@ -19,6 +21,9 @@
     <uses-permission
         android:name="android.permission.BIND_SCREENING_SERVICE"
         tools:ignore="ProtectedPermissions" />
+
+    <!-- 电话功能非必需（无电话能力的设备也能用离线查询/拦截配置），声明以避免 ChromeOS/平板不可安装 -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <!-- 外部网关默认使用 http 明文（http://114.55.170.79:5050），需允许 cleartext；
          用户自定义地址不受限。若改用纯 https 网关可再收紧为 networkSecurityConfig。 -->

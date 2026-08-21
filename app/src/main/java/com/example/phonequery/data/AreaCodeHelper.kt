@@ -25,7 +25,7 @@ class AreaCodeHelper(context: Context) {
      * 支持带 0 前缀的区号，如 057156264805。
      */
     fun parseLandline(number: String): LandlineLocation? {
-        val digits = number.replace(Regex("\\D"), "")
+        val digits = number.replace(NON_DIGIT_REGEX, "")
         if (digits.length < 8) return null
 
         // 尝试 4 位、3 位、2 位区号匹配

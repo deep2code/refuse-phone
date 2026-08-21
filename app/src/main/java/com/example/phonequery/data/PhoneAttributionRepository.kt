@@ -53,7 +53,7 @@ class PhoneAttributionRepository(context: Context) {
      */
     fun lookupAttribution(digitsRaw: String): Triple<String, String, String>? {
         if (!isEnabled) return null
-        val digits = digitsRaw.replace(Regex("\\D"), "")
+        val digits = digitsRaw.replace(NON_DIGIT_REGEX, "")
         // 仅对 11 位、1 开头的手机号做归属地查询
         if (digits.length != 11 || !digits.startsWith("1")) return null
         val prefix = digits.substring(0, 7).toIntOrNull() ?: return null

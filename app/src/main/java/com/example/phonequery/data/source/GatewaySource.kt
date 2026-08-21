@@ -1,6 +1,7 @@
 package com.example.phonequery.data.source
 
 import com.example.phonequery.data.NetworkModule
+import com.example.phonequery.data.NON_DIGIT_REGEX
 import com.example.phonequery.model.NumberType
 import com.example.phonequery.model.PlatformMark
 import com.example.phonequery.network.GatewayService
@@ -30,7 +31,7 @@ class GatewaySource(
     override suspend fun query(number: String, type: NumberType): SourceResult? {
         if (!isEnabled) return null
         if (type != NumberType.MOBILE) return null
-        val digits = number.replace(Regex("\\D"), "")
+        val digits = number.replace(NON_DIGIT_REGEX, "")
         if (digits.length != 11) return null
 
         val body = runCatching { service.query(digits) }.getOrNull() ?: return null

@@ -1,5 +1,6 @@
 package com.example.phonequery.data.source
 
+import com.example.phonequery.data.NON_DIGIT_REGEX
 import com.example.phonequery.model.NumberType
 import com.example.phonequery.model.PlatformMark
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,7 @@ class AliyunMarkSource(
 
     override suspend fun query(number: String, type: NumberType): SourceResult? {
         if (!isEnabled) return null
-        val digits = number.replace(Regex("\\D"), "")
+        val digits = number.replace(NON_DIGIT_REGEX, "")
         if (digits.length < 7) return null
 
         return withContext(Dispatchers.IO) {

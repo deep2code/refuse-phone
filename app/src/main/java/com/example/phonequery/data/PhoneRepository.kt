@@ -26,6 +26,9 @@ class PhoneRepository(context: Context) {
 
     private val appContext: Context = context
 
+    // 复用同一 DataStore 包装实例（DataStore 本身按名单例，这里避免每次查询重复创建包装对象）
+    private val settingsDataStore = SettingsDataStore(appContext)
+
     private val phoneUtil = PhoneNumberUtil.getInstance()
     private val geocoder = PhoneNumberOfflineGeocoder.getInstance()
     private val carrierMapper = PhoneNumberToCarrierMapper.getInstance()
@@ -52,14 +55,14 @@ class PhoneRepository(context: Context) {
      */
     suspend fun query(number: String): PhoneInfo = withContext(Dispatchers.IO) {
         val cleaned = number.trim()
-            .replace(Regex("[\\s()-]"), "")
+            .replace(CLEAN_SPACE_REGEX, "")
             .replace("＋", "+")
         if (cleaned.isBlank() || cleaned == "+") {
             return@withContext PhoneInfo(errorMessage = "号码不能为空")
         }
 
         val offlineInfo = parseOffline(cleaned)
-        val digits = cleaned.replace(Regex("\\D"), "")
+        val digits = cleaned.replace(NON_DIGIT_REGEX, "")
 
         // 归属地补充：若用户生成了 phonedata.db（可刷新、比 lalakii 内置库更新），
         // 用它覆盖省/市/运营商；否则回落 lalakii/phonedata 的离线结果。
@@ -108,7 +111,7 @@ class PhoneRepository(context: Context) {
         // 受「在线查询开关」控制：默认关闭（离线优先），开启才会把号码发到外部网关/第三方。
         // 网关地址默认 http://114.55.170.79:5050，可在设置中修改。
         val settings = try {
-            SettingsDataStore(appContext).settingsFlow.first()
+            settingsDataStore.settingsFlow.first()
         } catch (_: Exception) {
             null
         }
