@@ -1,0 +1,59 @@
+# XcodeGen 工程配置：`brew install xcodegen && xcodegen generate` 生成 RefusePhone.xcodeproj
+# 生成物不入库（见 .gitignore）。CI（.github/workflows/ios-build.yml）会自动生成并编译。
+name: RefusePhone
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+targets:
+  RefusePhone:
+    type: application
+    platform: iOS
+    sources:
+      - path: RefusePhone/App
+      - path: RefusePhone/Core
+      - path: RefusePhone/Resources
+    dependencies:
+      - target: CallDirectoryExtension
+        embed: true
+      - sdk: libsqlite3.tbd
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.refusephone
+        PRODUCT_NAME: RefusePhone
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: 反骚扰
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        CODE_SIGN_ENTITLEMENTS: RefusePhone/App/RefusePhone.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+  CallDirectoryExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: RefusePhone/CallDirectory
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.refusephone.CallDirectory
+        PRODUCT_NAME: CallDirectoryExtension
+        INFOPLIST_FILE: RefusePhone/CallDirectory/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: RefusePhone/CallDirectory/CallDirectory.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+schemes:
+  RefusePhone:
+    build:
+      targets:
+        RefusePhone: all
+        CallDirectoryExtension: all
+    run:
+      config: Debug
+    archive:
+      config: Release

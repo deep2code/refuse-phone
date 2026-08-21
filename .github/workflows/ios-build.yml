@@ -1,0 +1,44 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build RefusePhone (iOS)
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build (unsigned, iphoneos)
+        working-directory: ios
+        run: |
+          xcodebuild -project RefusePhone.xcodeproj -scheme RefusePhone \
+            -configuration Debug -sdk iphoneos -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+
+      - name: Package .app
+        working-directory: ios
+        run: |
+          cd build/DerivedData/Build/Products/Debug-iphoneos
+          zip -qr RefusePhone-unsigned.zip RefusePhone.app
+          ls -lh RefusePhone-unsigned.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: RefusePhone-unsigned
+          path: ios/build/DerivedData/Build/Products/Debug-iphoneos/RefusePhone-unsigned.zip
