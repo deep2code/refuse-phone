@@ -27,9 +27,11 @@ jobs:
         working-directory: ios
         run: |
           set +e
+          # ad-hoc 签名：CI 无需证书即可签名，满足 ValidateEmbeddedBinary（完全禁用签名会报
+          # "Embedded binary's bundle identifier is not prefixed" 校验错误）
           xcodebuild -project RefusePhone.xcodeproj -scheme RefusePhone \
             -configuration Debug -sdk iphoneos -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build > build.log 2>&1
+            CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO build > build.log 2>&1
           EC=$?
           if [ $EC -ne 0 ]; then
             echo "::error::xcodebuild exit=$EC"
