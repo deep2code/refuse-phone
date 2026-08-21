@@ -39,7 +39,10 @@ targets:
     platform: iOS
     sources:
       - path: RefusePhone/CallDirectory
-      - path: RefusePhone/Core
+      # 扩展只需要轻量共享逻辑，不引入 SQLite / 分析器
+      - path: RefusePhone/Core/SharedStore.swift
+      - path: RefusePhone/Core/E164.swift
+      - path: RefusePhone/Core/SpamPrefix.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.refusephone.CallDirectory

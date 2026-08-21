@@ -49,5 +49,5 @@ final class AreaCodeDatabase {
         }
     }
 
-    func area(byCode: String) -> AreaCode? { byCode[byCode] }
+    func area(byCode code: String) -> AreaCode? { byCode[code] }
 }

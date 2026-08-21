@@ -23,8 +23,8 @@ final class NumberAnalyzer {
         } else if E164.isLandline(digits) {
             if let (areaCode, _, location) = AreaCode.parseLandline(digits) {
                 info.areaCode = areaCode
-                info.city = location.city
-                info.province = location.province
+                info.city = location?.city
+                info.province = location?.province
             }
         }
 
