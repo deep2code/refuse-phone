@@ -5,9 +5,19 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import com.example.phonequery.BuildConfig
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 object NetworkModule {
+
+    /**
+     * 各在线源默认网关地址。
+     * 用户可在「设置 → 在线查询」中覆盖（支持代理/自建网关/内网地址），
+     * 留空时回落以下默认官方地址。
+     */
+    const val DEFAULT_JUHE_BASE_URL = "https://apis.juhe.cn/"
+    const val DEFAULT_QCC_BASE_URL = "https://api.qichacha.com/"
+    const val DEFAULT_AIQICHA_BASE_URL = "https://api.aiqicha.baidu.com/"
 
     /**
      * 日志仅在 Debug 构建打印 BODY（含请求/响应明细，可能含号码）。
@@ -25,30 +35,19 @@ object NetworkModule {
         .addInterceptor(loggingInterceptor)
         .build()
 
-    /**
-     * 聚合数据接口（可选在线标记/归属地源）。key 由用户在设置中填写，运行时注入到 JuheService 调用。
-     */
-    val juheRetrofit: Retrofit = Retrofit.Builder()
-        .client(okHttpClient)
-        .baseUrl("https://apis.juhe.cn/")
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
+    /** 按 baseUrl 缓存 Retrofit 实例，同一地址复用，避免重复创建。 */
+    private val retrofitCache = ConcurrentHashMap<String, Retrofit>()
 
     /**
-     * 企查查开放平台（可选企业源）。key 在编译期通过 BuildConfig.QCC_KEY / QCC_TOKEN 注入。
+     * 根据网关地址创建（或复用）Retrofit 实例。
+     * 地址来自用户设置（可配置），默认值为各源的官方地址。
      */
-    val qccRetrofit: Retrofit = Retrofit.Builder()
-        .client(okHttpClient)
-        .baseUrl("https://api.qichacha.com/")
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-
-    /**
-     * 百度爱企查开放 API（可选企业源）。key 在编译期通过 BuildConfig.AIQICHA_APIKEY 注入。
-     */
-    val aiqichaRetrofit: Retrofit = Retrofit.Builder()
-        .client(okHttpClient)
-        .baseUrl("https://api.aiqicha.baidu.com/")
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
+    fun retrofitFor(baseUrl: String): Retrofit =
+        retrofitCache.getOrPut(baseUrl) {
+            Retrofit.Builder()
+                .client(okHttpClient)
+                .baseUrl(baseUrl)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+        }
 }

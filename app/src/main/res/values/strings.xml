@@ -127,6 +127,13 @@
     <string name="setting_aliyun_appcode_hint">阿里云云市场购买「号码标记」商品后获取</string>
     <string name="setting_aliyun_url">阿里云调用地址（URL）</string>
     <string name="setting_aliyun_url_hint">如 https://xxxx.market.alicloudapi.com/phone/mark/query</string>
+    <string name="setting_base_url_desc">以下接口地址默认使用官方地址；如需代理 / 自建网关 / 内网地址可自行修改，留空即回落默认。地址需以 / 结尾。</string>
+    <string name="setting_juhe_url">聚合数据接口地址</string>
+    <string name="setting_juhe_url_hint">默认 https://apis.juhe.cn/</string>
+    <string name="setting_qcc_url">企查查接口地址</string>
+    <string name="setting_qcc_url_hint">默认 https://api.qichacha.com/</string>
+    <string name="setting_aiqicha_url">爱企查接口地址</string>
+    <string name="setting_aiqicha_url_hint">默认 https://api.aiqicha.baidu.com/</string>
     <string name="blocklist_title">黑白名单</string>
     <string name="blocklist_summary">黑名单 %1$d 条（本地无限）· 白名单 %2$d 条</string>
     <string name="blacklist_capacity">黑名单共 %1$d 条</string>

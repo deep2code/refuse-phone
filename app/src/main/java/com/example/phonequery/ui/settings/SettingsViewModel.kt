@@ -145,6 +145,27 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /** 保存聚合数据 juhe.cn 网关地址（留空回落官方默认地址）。 */
+    fun setJuheBaseUrl(value: String) {
+        viewModelScope.launch {
+            settingsDataStore.updateJuheBaseUrl(value)
+        }
+    }
+
+    /** 保存企查查开放平台网关地址（留空回落官方默认地址）。 */
+    fun setQccBaseUrl(value: String) {
+        viewModelScope.launch {
+            settingsDataStore.updateQccBaseUrl(value)
+        }
+    }
+
+    /** 保存百度爱企查开放 API 网关地址（留空回落官方默认地址）。 */
+    fun setAiqichaBaseUrl(value: String) {
+        viewModelScope.launch {
+            settingsDataStore.updateAiqichaBaseUrl(value)
+        }
+    }
+
     val hasSeenSetupGuide: Flow<Boolean> = settingsDataStore.hasSeenSetupGuide
 
     fun markSetupGuideSeen() {

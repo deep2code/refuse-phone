@@ -10,12 +10,14 @@ import com.example.phonequery.network.QccService
  * - 免费试用 20 次，之后按次付费（约 0.1～1 元/次）。未配置 key 则 [isEnabled]=false。
  * - 用于补充固话「公司 + 所属行业」，与零 key 的 tmini 公司名反查形成增强。
  */
-class QccSource : EnterpriseSource {
+class QccSource(
+    private val baseUrl: String = NetworkModule.DEFAULT_QCC_BASE_URL
+) : EnterpriseSource {
     override val name = "qcc"
     override val isEnabled: Boolean =
         BuildConfig.QCC_KEY.isNotBlank() && BuildConfig.QCC_TOKEN.isNotBlank()
 
-    private val service by lazy { NetworkModule.qccRetrofit.create(QccService::class.java) }
+    private val service by lazy { NetworkModule.retrofitFor(baseUrl).create(QccService::class.java) }
 
     override suspend fun lookup(number: String): EnterpriseSourceResult? {
         if (!isEnabled) return null

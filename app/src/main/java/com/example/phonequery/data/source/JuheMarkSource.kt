@@ -12,11 +12,14 @@ import com.example.phonequery.data.NetworkModule
  * - 返回号码标记类型（诈骗电话 / 骚扰电话 / 推销 / 房产中介 / 快递送餐…）与标记次数。
  * - 这是目前可替代 tmini 的免费个人可用源：juhe.cn 个人实名后即可拿到 key，有免费额度。
  */
-class JuheMarkSource(private val key: String = "") : OnlineMarkSource {
+class JuheMarkSource(
+    private val key: String = "",
+    private val baseUrl: String = NetworkModule.DEFAULT_JUHE_BASE_URL
+) : OnlineMarkSource {
     override val name = "juhe-mark"
     override val isEnabled: Boolean = key.isNotBlank()
 
-    private val service by lazy { NetworkModule.juheRetrofit.create(JuheService::class.java) }
+    private val service by lazy { NetworkModule.retrofitFor(baseUrl).create(JuheService::class.java) }
 
     override suspend fun query(number: String, type: NumberType): SourceResult? {
         if (!isEnabled) return null

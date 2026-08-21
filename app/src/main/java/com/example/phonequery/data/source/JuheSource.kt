@@ -9,11 +9,14 @@ import com.example.phonequery.data.NetworkModule
  * - key 由构造注入（来自设置中用户填写的 juhe key），未配置则 [isEnabled] = false，不参与查询。
  * - 免费额度约 50 次/天，仅补充归属地（省/市/运营商），不提供骚扰标记。
  */
-class JuheSource(private val key: String = "") : OnlineMarkSource {
+class JuheSource(
+    private val key: String = "",
+    private val baseUrl: String = NetworkModule.DEFAULT_JUHE_BASE_URL
+) : OnlineMarkSource {
     override val name = "juhe"
     override val isEnabled: Boolean = key.isNotBlank()
 
-    private val service by lazy { NetworkModule.juheRetrofit.create(JuheService::class.java) }
+    private val service by lazy { NetworkModule.retrofitFor(baseUrl).create(JuheService::class.java) }
 
     override suspend fun query(number: String, type: NumberType): SourceResult? {
         if (!isEnabled) return null

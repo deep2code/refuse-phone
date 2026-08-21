@@ -395,6 +395,58 @@ fun SettingsScreen(
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.setting_base_url_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    var juheUrlText by remember { mutableStateOf(settings.juheBaseUrl) }
+                    LaunchedEffect(settings.juheBaseUrl) { juheUrlText = settings.juheBaseUrl }
+                    OutlinedTextField(
+                        value = juheUrlText,
+                        onValueChange = {
+                            juheUrlText = it
+                            viewModel.setJuheBaseUrl(it)
+                        },
+                        label = { Text(stringResource(R.string.setting_juhe_url)) },
+                        placeholder = { Text(stringResource(R.string.setting_juhe_url_hint)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    var qccUrlText by remember { mutableStateOf(settings.qccBaseUrl) }
+                    LaunchedEffect(settings.qccBaseUrl) { qccUrlText = settings.qccBaseUrl }
+                    OutlinedTextField(
+                        value = qccUrlText,
+                        onValueChange = {
+                            qccUrlText = it
+                            viewModel.setQccBaseUrl(it)
+                        },
+                        label = { Text(stringResource(R.string.setting_qcc_url)) },
+                        placeholder = { Text(stringResource(R.string.setting_qcc_url_hint)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    var aiqichaUrlText by remember { mutableStateOf(settings.aiqichaBaseUrl) }
+                    LaunchedEffect(settings.aiqichaBaseUrl) { aiqichaUrlText = settings.aiqichaBaseUrl }
+                    OutlinedTextField(
+                        value = aiqichaUrlText,
+                        onValueChange = {
+                            aiqichaUrlText = it
+                            viewModel.setAiqichaBaseUrl(it)
+                        },
+                        label = { Text(stringResource(R.string.setting_aiqicha_url)) },
+                        placeholder = { Text(stringResource(R.string.setting_aiqicha_url_hint)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
 

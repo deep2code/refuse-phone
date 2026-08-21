@@ -145,11 +145,12 @@ class PhoneRepository(context: Context) {
     /** 依次尝试各在线源，合并结果（前者字段优先）。各源 key 来自用户设置，未配置则跳过。 */
     private suspend fun queryOnline(number: String, type: NumberType, settings: AppSettings?): SourceResult? {
         val juheKey = settings?.juheKey ?: ""
+        val juheBaseUrl = settings?.juheBaseUrl ?: NetworkModule.DEFAULT_JUHE_BASE_URL
         val aliyunAppcode = settings?.aliyunMarkAppcode ?: ""
         val aliyunUrl = settings?.aliyunMarkUrl ?: ""
         val sources = listOfNotNull(
-            JuheMarkSource(juheKey),
-            JuheSource(juheKey),
+            JuheMarkSource(juheKey, juheBaseUrl),
+            JuheSource(juheKey, juheBaseUrl),
             AliyunMarkSource(aliyunAppcode, aliyunUrl),
             BaiduSource().takeIf { it.isEnabled }
         )

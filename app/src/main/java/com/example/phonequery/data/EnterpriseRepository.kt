@@ -26,9 +26,9 @@ class EnterpriseRepository(context: Context) {
     private val markCacheRepository: MarkCacheRepository = MarkCacheRepository(context)
 
     /** 可选企业源；全部 key 缺失时为空列表，走纯零 key 流程。 */
-    private val enterpriseSources: List<EnterpriseSource> = listOfNotNull(
-        QccSource().takeIf { it.isEnabled },
-        AiqichaSource().takeIf { it.isEnabled }
+    private fun buildEnterpriseSources(settings: AppSettings?): List<EnterpriseSource> = listOfNotNull(
+        QccSource(settings?.qccBaseUrl ?: NetworkModule.DEFAULT_QCC_BASE_URL).takeIf { it.isEnabled },
+        AiqichaSource(settings?.aiqichaBaseUrl ?: NetworkModule.DEFAULT_AIQICHA_BASE_URL).takeIf { it.isEnabled }
     )
 
     /**
@@ -66,7 +66,8 @@ class EnterpriseRepository(context: Context) {
             }
 
             // 用可选工商源（企查查/爱企查，需配置 key）按电话反查公司
-            val enterprises = lookupFromSources(digits)?.let { listOf(it) } ?: emptyList()
+            val sources = buildEnterpriseSources(settings)
+            val enterprises = lookupFromSources(digits, sources)?.let { listOf(it) } ?: emptyList()
 
             if (enterprises.isNotEmpty()) {
                 runCatching { markCacheRepository.saveEnterprise(digits, enterprises.map { it.name }) }
@@ -75,8 +76,8 @@ class EnterpriseRepository(context: Context) {
         }
 
     /** 用可选企业源直接按电话反查公司。 */
-    private suspend fun lookupFromSources(digits: String): EnterpriseInfo? {
-        for (src in enterpriseSources) {
+    private suspend fun lookupFromSources(digits: String, sources: List<EnterpriseSource>): EnterpriseInfo? {
+        for (src in sources) {
             if (!src.isEnabled) continue
             val r: EnterpriseSourceResult = runCatching { src.lookup(digits) }.getOrNull() ?: continue
             if (!r.company.isNullOrBlank()) {

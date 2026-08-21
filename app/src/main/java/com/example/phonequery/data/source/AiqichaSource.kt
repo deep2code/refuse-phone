@@ -10,11 +10,13 @@ import com.example.phonequery.network.AiqichaService
  * - 未配置 APIKEY 则 [isEnabled]=false，不参与查询。
  * - 作为企查查之外的备选企业源；两者都配置时企查查优先。
  */
-class AiqichaSource : EnterpriseSource {
+class AiqichaSource(
+    private val baseUrl: String = NetworkModule.DEFAULT_AIQICHA_BASE_URL
+) : EnterpriseSource {
     override val name = "aiqicha"
     override val isEnabled: Boolean = BuildConfig.AIQICHA_APIKEY.isNotBlank()
 
-    private val service by lazy { NetworkModule.aiqichaRetrofit.create(AiqichaService::class.java) }
+    private val service by lazy { NetworkModule.retrofitFor(baseUrl).create(AiqichaService::class.java) }
 
     override suspend fun lookup(number: String): EnterpriseSourceResult? {
         if (!isEnabled) return null
