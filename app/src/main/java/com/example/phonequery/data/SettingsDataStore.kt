@@ -32,18 +32,12 @@ class SettingsDataStore(context: Context) {
         val ENABLE_BLOCK_NON_CONTACTS = booleanPreferencesKey("enable_block_non_contacts")
         /** 在线查询总开关：默认关闭（离线优先，保护隐私，不把号码发给第三方） */
         val ENABLE_ONLINE_LOOKUP = booleanPreferencesKey("enable_online_lookup")
-        /** 聚合数据 juhe.cn 密钥：个人实名后获取，用于号码标记 + 归属地增强（留空则此源不生效） */
-        val JUHE_KEY = stringPreferencesKey("juhe_key")
+        /** 外部网关地址（自建/代理，默认 http://114.55.170.79:5050/；留空回落默认） */
+        val GATEWAY_BASE_URL = stringPreferencesKey("gateway_base_url")
         /** 阿里云云市场「聚美智数」号码标记 APPCODE：个人购买后获取（留空则此源不生效） */
         val ALIYUN_MARK_APPCODE = stringPreferencesKey("aliyun_mark_appcode")
         /** 阿里云云市场「聚美智数」号码标记调用地址（不同商品路径不同，需按购买商品填写） */
         val ALIYUN_MARK_URL = stringPreferencesKey("aliyun_mark_url")
-        /** 聚合数据 juhe.cn 网关地址（默认官方地址，可改为代理/自建网关；留空回落默认） */
-        val JUHE_BASE_URL = stringPreferencesKey("juhe_base_url")
-        /** 企查查开放平台网关地址（默认官方地址，可改为代理/自建网关；留空回落默认） */
-        val QCC_BASE_URL = stringPreferencesKey("qcc_base_url")
-        /** 百度爱企查开放 API 网关地址（默认官方地址，可改为代理/自建网关；留空回落默认） */
-        val AIQICHA_BASE_URL = stringPreferencesKey("aiqicha_base_url")
         /** 拦截动作：block=拒接 / log=放行仅记录 */
         val INTERCEPT_ACTION = stringPreferencesKey("intercept_action")
         /** 悬浮窗透明度 0.3~1.0 */
@@ -63,12 +57,9 @@ class SettingsDataStore(context: Context) {
             enableCallScreening = prefs[ENABLE_CALL_SCREENING] ?: false,
             enableBlockNonContacts = prefs[ENABLE_BLOCK_NON_CONTACTS] ?: false,
             enableOnlineLookup = prefs[ENABLE_ONLINE_LOOKUP] ?: false,
-            juheKey = prefs[JUHE_KEY] ?: "",
+            gatewayBaseUrl = prefs[GATEWAY_BASE_URL]?.takeIf { it.isNotBlank() } ?: NetworkModule.DEFAULT_GATEWAY_BASE_URL,
             aliyunMarkAppcode = prefs[ALIYUN_MARK_APPCODE] ?: "",
             aliyunMarkUrl = prefs[ALIYUN_MARK_URL] ?: "",
-            juheBaseUrl = prefs[JUHE_BASE_URL]?.takeIf { it.isNotBlank() } ?: NetworkModule.DEFAULT_JUHE_BASE_URL,
-            qccBaseUrl = prefs[QCC_BASE_URL]?.takeIf { it.isNotBlank() } ?: NetworkModule.DEFAULT_QCC_BASE_URL,
-            aiqichaBaseUrl = prefs[AIQICHA_BASE_URL]?.takeIf { it.isNotBlank() } ?: NetworkModule.DEFAULT_AIQICHA_BASE_URL,
             interceptAction = prefs[INTERCEPT_ACTION] ?: AppSettings.INTERCEPT_BLOCK,
             floatingAlpha = prefs[FLOATING_ALPHA] ?: 0.9f
         )
@@ -122,8 +113,14 @@ class SettingsDataStore(context: Context) {
         dataStore.edit { it[ENABLE_ONLINE_LOOKUP] = enabled }
     }
 
-    suspend fun updateJuheKey(value: String) {
-        dataStore.edit { it[JUHE_KEY] = value.trim() }
+    suspend fun updateGatewayBaseUrl(value: String) {
+        dataStore.edit { it[GATEWAY_BASE_URL] = normalizeBaseUrl(value) }
+    }
+
+    /** 归一化网关地址：去首尾空白并保证以 / 结尾（Retrofit 要求）；留空则回落默认地址。 */
+    private fun normalizeBaseUrl(value: String): String {
+        val trimmed = value.trim()
+        return if (trimmed.isBlank()) "" else trimmed.trimEnd('/') + "/"
     }
 
     suspend fun updateAliyunMarkAppcode(value: String) {
@@ -132,24 +129,6 @@ class SettingsDataStore(context: Context) {
 
     suspend fun updateAliyunMarkUrl(value: String) {
         dataStore.edit { it[ALIYUN_MARK_URL] = value.trim() }
-    }
-
-    suspend fun updateJuheBaseUrl(value: String) {
-        dataStore.edit { it[JUHE_BASE_URL] = normalizeBaseUrl(value) }
-    }
-
-    suspend fun updateQccBaseUrl(value: String) {
-        dataStore.edit { it[QCC_BASE_URL] = normalizeBaseUrl(value) }
-    }
-
-    suspend fun updateAiqichaBaseUrl(value: String) {
-        dataStore.edit { it[AIQICHA_BASE_URL] = normalizeBaseUrl(value) }
-    }
-
-    /** 归一化网关地址：去首尾空白并保证以 / 结尾（Retrofit 要求）；留空则回落默认地址。 */
-    private fun normalizeBaseUrl(value: String): String {
-        val trimmed = value.trim()
-        return if (trimmed.isBlank()) "" else trimmed.trimEnd('/') + "/"
     }
 
     suspend fun updateInterceptAction(action: String) {
@@ -172,12 +151,9 @@ data class AppSettings(
     val enableCallScreening: Boolean = false,
     val enableBlockNonContacts: Boolean = false,
     val enableOnlineLookup: Boolean = false,
-    val juheKey: String = "",
+    val gatewayBaseUrl: String = NetworkModule.DEFAULT_GATEWAY_BASE_URL,
     val aliyunMarkAppcode: String = "",
     val aliyunMarkUrl: String = "",
-    val juheBaseUrl: String = NetworkModule.DEFAULT_JUHE_BASE_URL,
-    val qccBaseUrl: String = NetworkModule.DEFAULT_QCC_BASE_URL,
-    val aiqichaBaseUrl: String = NetworkModule.DEFAULT_AIQICHA_BASE_URL,
     val interceptAction: String = INTERCEPT_BLOCK,
     val floatingAlpha: Float = 0.9f
 ) {

@@ -332,7 +332,7 @@ fun SettingsScreen(
                     }
             }
 
-            // 在线查询（号码标记）：juhe 标记/归属地 + 阿里云多平台标记，key 由用户填写
+            // 在线查询（号码标记）：外部网关（默认 http://114.55.170.79:5050）+ 阿里云多平台标记
             AppCard {
                 Text(
                     text = stringResource(R.string.setting_online_lookup),
@@ -351,16 +351,16 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    var juheText by remember { mutableStateOf(settings.juheKey) }
-                    LaunchedEffect(settings.juheKey) { juheText = settings.juheKey }
+                    var gatewayUrlText by remember { mutableStateOf(settings.gatewayBaseUrl) }
+                    LaunchedEffect(settings.gatewayBaseUrl) { gatewayUrlText = settings.gatewayBaseUrl }
                     OutlinedTextField(
-                        value = juheText,
+                        value = gatewayUrlText,
                         onValueChange = {
-                            juheText = it
-                            viewModel.setJuheKey(it)
+                            gatewayUrlText = it
+                            viewModel.setGatewayBaseUrl(it)
                         },
-                        label = { Text(stringResource(R.string.setting_juhe_key)) },
-                        placeholder = { Text(stringResource(R.string.setting_juhe_key_hint)) },
+                        label = { Text(stringResource(R.string.setting_gateway_url)) },
+                        placeholder = { Text(stringResource(R.string.setting_gateway_url_hint)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         modifier = Modifier.fillMaxWidth()
@@ -391,58 +391,6 @@ fun SettingsScreen(
                         },
                         label = { Text(stringResource(R.string.setting_aliyun_url)) },
                         placeholder = { Text(stringResource(R.string.setting_aliyun_url_hint)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.setting_base_url_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    var juheUrlText by remember { mutableStateOf(settings.juheBaseUrl) }
-                    LaunchedEffect(settings.juheBaseUrl) { juheUrlText = settings.juheBaseUrl }
-                    OutlinedTextField(
-                        value = juheUrlText,
-                        onValueChange = {
-                            juheUrlText = it
-                            viewModel.setJuheBaseUrl(it)
-                        },
-                        label = { Text(stringResource(R.string.setting_juhe_url)) },
-                        placeholder = { Text(stringResource(R.string.setting_juhe_url_hint)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    var qccUrlText by remember { mutableStateOf(settings.qccBaseUrl) }
-                    LaunchedEffect(settings.qccBaseUrl) { qccUrlText = settings.qccBaseUrl }
-                    OutlinedTextField(
-                        value = qccUrlText,
-                        onValueChange = {
-                            qccUrlText = it
-                            viewModel.setQccBaseUrl(it)
-                        },
-                        label = { Text(stringResource(R.string.setting_qcc_url)) },
-                        placeholder = { Text(stringResource(R.string.setting_qcc_url_hint)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    var aiqichaUrlText by remember { mutableStateOf(settings.aiqichaBaseUrl) }
-                    LaunchedEffect(settings.aiqichaBaseUrl) { aiqichaUrlText = settings.aiqichaBaseUrl }
-                    OutlinedTextField(
-                        value = aiqichaUrlText,
-                        onValueChange = {
-                            aiqichaUrlText = it
-                            viewModel.setAiqichaBaseUrl(it)
-                        },
-                        label = { Text(stringResource(R.string.setting_aiqicha_url)) },
-                        placeholder = { Text(stringResource(R.string.setting_aiqicha_url_hint)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         modifier = Modifier.fillMaxWidth()

@@ -33,9 +33,8 @@ android {
             useSupportLibrary = true
         }
 
-        // 本项目零 key 运行，无需配置任何 API Key（默认使用 tmini 免费网关 + 内置号段库）
+        // 本项目零 key 运行，无需配置任何 API Key（默认使用内置号段库 + 外部网关）
         // 以下为「可选在线源」的 key，留空即不使用；配置后从 local.properties 读取。
-        buildConfigField("String", "JUHE_KEY", "\"${localProperty("JUHE_KEY")}\"")
         buildConfigField("String", "BAIDU_PHONE_API_URL", "\"${localProperty("BAIDU_PHONE_API_URL")}\"")
         buildConfigField("String", "BAIDU_PHONE_KEY", "\"${localProperty("BAIDU_PHONE_KEY")}\"")
 
@@ -43,12 +42,6 @@ android {
         buildConfigField("String", "ALIYUN_MARK_APPCODE", "\"${localProperty("ALIYUN_MARK_APPCODE")}\"")
         buildConfigField("String", "ALIYUN_MARK_URL", "\"${localProperty("ALIYUN_MARK_URL")}\"")
         buildConfigField("String", "ALIYUN_MARK_RESULT_URL", "\"${localProperty("ALIYUN_MARK_RESULT_URL")}\"")
-
-        // 企查查开放平台（可选企业源，按电话反查公司+行业）
-        buildConfigField("String", "QCC_KEY", "\"${localProperty("QCC_KEY")}\"")
-        buildConfigField("String", "QCC_TOKEN", "\"${localProperty("QCC_TOKEN")}\"")
-        // 百度爱企查开放 API（可选企业源）
-        buildConfigField("String", "AIQICHA_APIKEY", "\"${localProperty("AIQICHA_APIKEY")}\"")
     }
 
     // 签名配置：优先读 local.properties，其次读环境变量（CI 注入）。

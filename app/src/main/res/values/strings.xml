@@ -4,17 +4,15 @@
 
     <!-- 数据源状态 -->
     <string name="data_sources_title">在线数据源</string>
-    <string name="data_source_default">默认离线识别（号段提示 + 本地标记缓存 + 规则引擎）；在线标记需自行配置 juhe / 阿里云密钥</string>
-    <string name="data_source_juhe_on">聚合数据归属地（可选）：已启用</string>
-    <string name="data_source_juhe_off">聚合数据归属地（可选）：未配置 key，未启用</string>
+    <string name="data_source_default">默认离线识别（号段提示 + 本地标记缓存 + 规则引擎）；在线标记默认走外部网关（http://114.55.170.79:5050）</string>
+    <string name="data_source_gateway_on">外部网关（归属地 + 标记）：已启用</string>
+    <string name="data_source_gateway_off">外部网关（归属地 + 标记）：未配置，未启用</string>
     <string name="data_source_baidu_on">百度归属地（可选）：已启用</string>
     <string name="data_source_baidu_off">百度归属地（可选）：未配置，未启用</string>
     <string name="community_db_title">社区骚扰库</string>
     <string name="community_db_desc">已内置 %1$d 道开源众包骚扰号码（md5 离线匹配，越用越准）</string>
     <string name="data_source_aliyun_on">阿里云市场多平台标记（可选）：已启用</string>
     <string name="data_source_aliyun_off">阿里云市场多平台标记（可选）：未配置，未启用</string>
-    <string name="data_source_qcc_on">企查查企业源（可选）：已启用</string>
-    <string name="data_source_qcc_off">企查查企业源（可选）：未配置，未启用</string>
     <string name="code_number_db_desc">已内置 %1$d 条工信部码号资源（95/96/400/800 号段 → 使用单位）</string>
     <string name="data_source_attribution">手机号归属地：lalakii/phonedata 内置库 + 可选 phonedata.db（scripts/fetch_phonedata.py 生成，可刷新）</string>
     <string name="setting_call_screening">系统级来电识别</string>
@@ -120,20 +118,15 @@
     <string name="job_hunt_mode_hint">求职保护模式已开启：自动挂断仍会对黑名单生效，但骚扰/诈骗标记不会自动挂断，陌生号码会在悬浮窗中提醒，避免错过面试电话。</string>
     <string name="setting_online_lookup">在线查询（号码标记）</string>
     <string name="setting_online_lookup_desc">开启后，查询陌生号码会向已配置的在线标记源查询骚扰/诈骗标记。默认关闭；开启即表示同意将该号码发送给第三方用于识别。</string>
-    <string name="setting_online_sources_desc">可选标记源（均需自行注册获取密钥，留空则对应源不生效）：\n• 聚合数据 juhe.cn：个人实名后免费额度，返回诈骗/骚扰/推销等标记\n• 阿里云云市场「聚美智数」号码标记：多平台聚合（腾讯/百度/电话邦/360/泰迪熊）</string>
-    <string name="setting_juhe_key">聚合数据 juhe.cn 密钥（key）</string>
-    <string name="setting_juhe_key_hint">juhe.cn 实名后在「我的API」复制 key</string>
+    <string name="setting_online_sources_desc">在线标记源：
+• 外部网关（默认 http://114.55.170.79:5050，可在下方修改为代理/自建网关）：返回归属地 + 骚扰/诈骗标记
+• 阿里云云市场「聚美智数」号码标记（可选）：多平台聚合（腾讯/百度/电话邦/360/泰迪熊），需 APPCODE</string>
+    <string name="setting_gateway_url">外部接口地址</string>
+    <string name="setting_gateway_url_hint">默认 http://114.55.170.79:5050/</string>
     <string name="setting_aliyun_appcode">阿里云 APPCODE</string>
     <string name="setting_aliyun_appcode_hint">阿里云云市场购买「号码标记」商品后获取</string>
     <string name="setting_aliyun_url">阿里云调用地址（URL）</string>
     <string name="setting_aliyun_url_hint">如 https://xxxx.market.alicloudapi.com/phone/mark/query</string>
-    <string name="setting_base_url_desc">以下接口地址默认使用官方地址；如需代理 / 自建网关 / 内网地址可自行修改，留空即回落默认。地址需以 / 结尾。</string>
-    <string name="setting_juhe_url">聚合数据接口地址</string>
-    <string name="setting_juhe_url_hint">默认 https://apis.juhe.cn/</string>
-    <string name="setting_qcc_url">企查查接口地址</string>
-    <string name="setting_qcc_url_hint">默认 https://api.qichacha.com/</string>
-    <string name="setting_aiqicha_url">爱企查接口地址</string>
-    <string name="setting_aiqicha_url_hint">默认 https://api.aiqicha.baidu.com/</string>
     <string name="blocklist_title">黑白名单</string>
     <string name="blocklist_summary">黑名单 %1$d 条（本地无限）· 白名单 %2$d 条</string>
     <string name="blacklist_capacity">黑名单共 %1$d 条</string>

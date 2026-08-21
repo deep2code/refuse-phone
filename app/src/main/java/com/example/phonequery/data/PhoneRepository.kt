@@ -3,8 +3,7 @@ package com.example.phonequery.data
 import android.content.Context
 import com.example.phonequery.data.source.AliyunMarkSource
 import com.example.phonequery.data.source.BaiduSource
-import com.example.phonequery.data.source.JuheSource
-import com.example.phonequery.data.source.JuheMarkSource
+import com.example.phonequery.data.source.GatewaySource
 import com.example.phonequery.data.source.OnlineMarkSource
 import com.example.phonequery.data.source.SourceResult
 import com.example.phonequery.data.source.mergeSourceResults
@@ -49,7 +48,7 @@ class PhoneRepository(context: Context) {
      * 1. 本地离线解析（libphonenumber + 中国号段库）
      * 2. 本地号段库匹配（零 key，虚商/高风险号段提示）
      * 3. 社区骚扰库 md5 匹配（零 key，开源众包清单）
-     * 4. 在线源链（juhe 标记/归属地 + 阿里云多平台标记）→ 结果回写本地缓存
+     * 4. 在线源链（外部网关 + 阿里云多平台标记）→ 结果回写本地缓存
      */
     suspend fun query(number: String): PhoneInfo = withContext(Dispatchers.IO) {
         val cleaned = number.trim()
@@ -105,9 +104,9 @@ class PhoneRepository(context: Context) {
         // 读取本地缓存标记（断网也能标记骚扰/诈骗）
         val cached = runCatching { markCacheRepository.getCachedMark(digits) }.getOrNull()
 
-        // 第三层：在线源链（juhe 标记/归属地 + 阿里云多平台标记）
-        // 受「在线查询开关」控制：默认关闭（离线优先），开启才会把号码发到第三方网关。
-        // 各源的 key 由用户在设置中填写（运行时），未配置则对应源自动跳过。
+        // 第三层：在线源链（外部网关 + 阿里云多平台标记）
+        // 受「在线查询开关」控制：默认关闭（离线优先），开启才会把号码发到外部网关/第三方。
+        // 网关地址默认 http://114.55.170.79:5050，可在设置中修改。
         val settings = try {
             SettingsDataStore(appContext).settingsFlow.first()
         } catch (_: Exception) {
@@ -142,15 +141,13 @@ class PhoneRepository(context: Context) {
         }
     }
 
-    /** 依次尝试各在线源，合并结果（前者字段优先）。各源 key 来自用户设置，未配置则跳过。 */
+    /** 依次尝试各在线源，合并结果（前者字段优先）。外部网关地址默认 http://114.55.170.79:5050，可在设置中修改。 */
     private suspend fun queryOnline(number: String, type: NumberType, settings: AppSettings?): SourceResult? {
-        val juheKey = settings?.juheKey ?: ""
-        val juheBaseUrl = settings?.juheBaseUrl ?: NetworkModule.DEFAULT_JUHE_BASE_URL
+        val gatewayUrl = settings?.gatewayBaseUrl ?: NetworkModule.DEFAULT_GATEWAY_BASE_URL
         val aliyunAppcode = settings?.aliyunMarkAppcode ?: ""
         val aliyunUrl = settings?.aliyunMarkUrl ?: ""
         val sources = listOfNotNull(
-            JuheMarkSource(juheKey, juheBaseUrl),
-            JuheSource(juheKey, juheBaseUrl),
+            GatewaySource(gatewayUrl),
             AliyunMarkSource(aliyunAppcode, aliyunUrl),
             BaiduSource().takeIf { it.isEnabled }
         )

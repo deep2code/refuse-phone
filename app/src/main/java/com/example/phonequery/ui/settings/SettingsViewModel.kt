@@ -117,17 +117,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /** 在线查询总开关：开启即把号码发往已配置的在线标记源（juhe / 阿里云），隐私敏感，默认关。 */
+    /** 在线查询总开关：开启即把号码发往已配置的在线标记源（外部网关 / 阿里云），隐私敏感，默认关。 */
     fun setOnlineLookup(enabled: Boolean) {
         viewModelScope.launch {
             settingsDataStore.updateOnlineLookup(enabled)
         }
     }
 
-    /** 保存聚合数据 juhe.cn 密钥（个人实名后获取），留空则 juhe 源不生效。 */
-    fun setJuheKey(value: String) {
+    /** 保存外部网关地址（留空回落默认 http://114.55.170.79:5050/）。 */
+    fun setGatewayBaseUrl(value: String) {
         viewModelScope.launch {
-            settingsDataStore.updateJuheKey(value)
+            settingsDataStore.updateGatewayBaseUrl(value)
         }
     }
 
@@ -142,27 +142,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setAliyunMarkUrl(value: String) {
         viewModelScope.launch {
             settingsDataStore.updateAliyunMarkUrl(value)
-        }
-    }
-
-    /** 保存聚合数据 juhe.cn 网关地址（留空回落官方默认地址）。 */
-    fun setJuheBaseUrl(value: String) {
-        viewModelScope.launch {
-            settingsDataStore.updateJuheBaseUrl(value)
-        }
-    }
-
-    /** 保存企查查开放平台网关地址（留空回落官方默认地址）。 */
-    fun setQccBaseUrl(value: String) {
-        viewModelScope.launch {
-            settingsDataStore.updateQccBaseUrl(value)
-        }
-    }
-
-    /** 保存百度爱企查开放 API 网关地址（留空回落官方默认地址）。 */
-    fun setAiqichaBaseUrl(value: String) {
-        viewModelScope.launch {
-            settingsDataStore.updateAiqichaBaseUrl(value)
         }
     }
 

@@ -20,6 +20,8 @@
         android:name="android.permission.BIND_SCREENING_SERVICE"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- 外部网关默认使用 http 明文（http://114.55.170.79:5050），需允许 cleartext；
+         用户自定义地址不受限。若改用纯 https 网关可再收紧为 networkSecurityConfig。 -->
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -27,7 +29,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.PhoneQuery"
-        android:usesCleartextTraffic="false"
+        android:usesCleartextTraffic="true"
         tools:targetApi="34">
 
         <activity

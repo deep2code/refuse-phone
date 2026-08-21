@@ -11,13 +11,11 @@ import java.util.concurrent.TimeUnit
 object NetworkModule {
 
     /**
-     * 各在线源默认网关地址。
-     * 用户可在「设置 → 在线查询」中覆盖（支持代理/自建网关/内网地址），
-     * 留空时回落以下默认官方地址。
+     * 外部网关默认地址（自建 / 代理网关）。
+     * 用户可在「设置 → 在线查询 → 外部接口地址」中覆盖（支持代理/自建网关/内网地址），
+     * 留空时回落以下默认地址。
      */
-    const val DEFAULT_JUHE_BASE_URL = "https://apis.juhe.cn/"
-    const val DEFAULT_QCC_BASE_URL = "https://api.qichacha.com/"
-    const val DEFAULT_AIQICHA_BASE_URL = "https://api.aiqicha.baidu.com/"
+    const val DEFAULT_GATEWAY_BASE_URL = "http://114.55.170.79:5050/"
 
     /**
      * 日志仅在 Debug 构建打印 BODY（含请求/响应明细，可能含号码）。

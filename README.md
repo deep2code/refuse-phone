@@ -65,7 +65,7 @@ flowchart TB
 
     subgraph Data["数据层"]
         DB[(Room Database)]
-        Net[在线数据源<br/>Juhe / Tmini / Baidu / Aliyun]
+        Net[在线数据源<br/>Gateway / Baidu / Aliyun]
         Lib[libphonenumber + assets 号段]
     end
 
